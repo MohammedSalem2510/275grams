@@ -27,8 +27,7 @@ On-device voice control on an **Arduino UNO Q**, with two **ESP32-based Atech bo
 
 ## Rules
 
-- `main` always runs the demo. Work on branches: `kws/…`, `mcu/…`, `node/…`, `protocol/…`.
-- Merge via PR. Self-merge is fine, but only after testing on real hardware.
+- Commit straight to `main` (`git pull --rebase` before pushing). Prefix messages with the subsystem (`kws:`, `mcu:`, `node:`, `protocol:`, `docs:`) and say if a change is untested on hardware.
 - Tag every working full-system build: `git tag demo-vN && git push --tags`.
 - Never commit secrets. Copy `*.example*` files and fill them in locally.
 

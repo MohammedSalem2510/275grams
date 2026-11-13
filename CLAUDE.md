@@ -21,11 +21,12 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart
 
 ## Hard rules
 - `unoq-app/` must stay self-contained. App Lab compiles only `sketch/sketch.ino`, `sketch/*.h` and `sketch/sketch.yaml`, and runs `python/`. Nothing in it may reference files outside `unoq-app/`.
-- `main` always runs the demo. Use short-lived branches named by subsystem: `kws/…`, `mcu/…`, `node/…`, `protocol/…`.
-- Merge by PR using the template. Self-merge is fine, but only after testing on real hardware.
+- Commit straight to `main`; no branches or PRs. Run `git pull --rebase` before every push.
+- Prefix commit messages with the subsystem: `kws:`, `mcu:`, `node:`, `protocol:`, `docs:`. If a change hasn't been tested on real hardware, say so in the message.
+- The last `demo-vN` tag is the known-good build. If `main` breaks, roll the board back to it.
 - Tag every working full-system build `demo-vN` (`git tag demo-vN`, then `git push --tags`).
 - Never commit secrets (`secrets.h`, `.env`) or raw audio (`*.wav`, `data/`). Raw audio stays in Edge Impulse.
-- Change the MQTT contract in `protocol/README.md` first, in a `protocol/…` PR.
+- Change the MQTT contract in `protocol/README.md` first, in its own `protocol:` commit.
 
 ## Verified platform facts (from arduino/app-bricks-py and app-bricks-examples, Nov 2026)
 - Brick id: `arduino:keyword_spotting` (colon, not slash). Audio classification is `arduino:audio_classification`.

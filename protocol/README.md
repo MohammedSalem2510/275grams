@@ -16,4 +16,4 @@ All payloads are JSON. `<id>` is the node number (`1`, `2`).
 | `ping` | node replies on `nodes/<id>/status` with `"online"` |
 | _add yours here_ | |
 
-To change this contract, edit this file in a `protocol/…` PR **before** touching any code.
+To change this contract, edit this file in its own `protocol:` commit **before** touching any code.
