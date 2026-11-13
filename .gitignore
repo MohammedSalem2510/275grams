@@ -1,0 +1,25 @@
+# Secrets
+secrets.h
+arduino_secrets.h
+.env
+
+# PlatformIO
+.pio/
+.vscode/.browse*
+.vscode/ipch
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# App Lab
+.cache/
+
+# Raw audio data (lives in the Edge Impulse project, not git)
+data/
+*.wav
+
+# OS
+.DS_Store
+Thumbs.db
