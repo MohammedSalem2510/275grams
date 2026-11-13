@@ -18,10 +18,28 @@ MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
 THRESHOLD = 0.5
 
 
+# Common Finnish species, by BirdNET scientific name (label = "Scientific_Common").
+# Verify against BirdNET_GLOBAL_6K_V2.4_Labels.txt on the board: a typo never matches.
+FINNISH_SPECIES = {
+    "Fringilla coelebs", "Parus major", "Cyanistes caeruleus", "Periparus ater",
+    "Turdus merula", "Turdus philomelos", "Turdus pilaris", "Turdus iliacus",
+    "Erithacus rubecula", "Cuculus canorus", "Phylloscopus trochilus", "Phylloscopus collybita",
+    "Sylvia atricapilla", "Ficedula hypoleuca", "Regulus regulus", "Sitta europaea",
+    "Emberiza citrinella", "Pyrrhula pyrrhula", "Spinus spinus", "Chloris chloris",
+    "Passer domesticus", "Dendrocopos major", "Garrulus glandarius", "Pica pica",
+    "Corvus cornix", "Columba palumbus", "Larus canus", "Grus grus",
+}
+
+
 def accept(p: dict) -> bool:
     """Decide whether one window's prediction counts as a detection."""
-    # TODO(human): refine this rule.
-    return p["species"] is not None
+    label = p["species"]
+    if label is None or "Human" in label:  # privacy: speech never becomes evidence
+        return False
+    if label.split("_", 1)[0] in FINNISH_SPECIES:
+        return True
+    print(f"[chirp] unlisted, not counted: {label} {p['score']}", flush=True)  # kept reviewable
+    return False
 
 
 def listen():
