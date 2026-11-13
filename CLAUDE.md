@@ -3,19 +3,21 @@
 Brief: "a greener Europe". Direction: on-device voice/audio AI on the Arduino UNO Q.
 Team of 4. Hackathon ends Sunday. Write British English, be concise and opinionated, give no time estimates.
 
-## Use case (decided)
-Edge-AI biodiversity stations. Each station listens in a forest or park, identifies bird and animal calls on the device, and logs detections by species. Scientists get an interactive map of the stations with species search, date filters, a per-station heatmap of detections per hour of listening (areas with no station are shown as unsampled), a breakdown and clips for each station, and trends across weeks, seasons and years.
+## Use case (decided): Chirp
+The full brief is the "Project_Chirp" Google Doc linked from README.md; it is the source of truth for requirements. In short: a network of listening stations that identify bird and wildlife calls at the edge, feeding a map-based dashboard where ecologists see species activity per station and how it changes over time.
 - One-line pitch: low-power stations that tell ecologists where species are thriving or declining, without shipping hours of audio (or anyone's voice) to the cloud.
-- Be honest about the limits: detections are not individual animals. On the map, one station is live and the others are seeded or simulated, and the map labels them that way.
-- Classify with `arduino:audio_classification` (multi-class), not keyword spotting. Train a custom Edge Impulse model on a few species that are common in Finland, plus `noise` and `human` classes. Discard `human` detections on the device for privacy.
+- Honesty rules from the brief: the metric is **detections per valid listening hour**; zero listening time is "no data", never zero activity; areas without stations are "unsampled"; detections are not individual animals; trends are "changes in detected activity", not population loss; synthetic or historical data is always labelled as such; model confidence is not accuracy.
+- Classifier: **BirdNET on the UNO Q Linux side** (the teammate is evaluating it). BirdNET-Analyzer expects 48 kHz mono audio in 3 s windows, so capture with `Microphone(..., sample_rate=48000, channels=1)` from `arduino.app_peripherals.microphone`, and pass lat/lon (Espoo ≈ 60.2, 24.7) plus the week number to filter species. Check the licence: the BirdNET models are, as far as we know, CC BY-NC-SA 4.0. The fallback is an Edge Impulse model through `arduino:audio_classification`.
+- Discard human speech on the device: never store clips that contain speech.
 
 ## Milestones
 1. **demo-v0 (stock check):** the stock "Hey Arduino" KWS example runs on our board. This proves the mic, the Brick and Bridge.
-2. **demo-v1 (MVP):** the only priority right now. Mic → `audio_classification` on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the species on the LED matrix and plays a Modulino chirp. Python appends each detection to SQLite (`ts, station, species, confidence`).
-3. **demo-v2:** a web dashboard served from the UNO Q with the map, heatmap and filters, over one live station plus seeded history.
-4. Stretch: camera evidence, extra stations (`atech-node/`), MQTT, `protocol/`.
+2. **demo-v1 (MVP):** the only priority right now. USB mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp. Python writes to SQLite with separate `detections` (id, ts, station, species, confidence, model_version, clip) and `listening_sessions` (station, start, end) tables, so rates are right from day one.
+3. **demo-v2:** a dashboard served from the UNO Q (map, station status, per-station rate markers, species and date filters, a detail panel) over one live station plus clearly labelled seeded stations and history.
+4. **Network:** the two Atech ESP32 nodes become listening stations that stream to the UNO Q as the edge gateway, with heartbeats for online/offline. This is only possible if the Atech mics expose waveform samples rather than a sound level, so check that first. If they can't, the nodes report activity level and status only.
+5. Stretch: an on-demand camera livestream, human review states, multi-season trends on real data.
 
-Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`. `main.py` must run without a broker.
+Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart from checking the Atech mic, which is reading only. `main.py` must run without a broker.
 
 ## Hard rules
 - `unoq-app/` must stay self-contained. App Lab compiles only `sketch/sketch.ino`, `sketch/*.h` and `sketch/sketch.yaml`, and runs `python/`. Nothing in it may reference files outside `unoq-app/`.
@@ -41,6 +43,9 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`. `main
 ## Still unverified
 - Whether App Lab follows a symlink from `~/ArduinoApps/` into the repo clone. If it doesn't, use `tools/deploy.sh`.
 - Whether the kit camera has a mic.
+- Whether the Atech microphone gives waveform samples (analogue output we can sample at 16 kHz or more, or I2S) or only a sound level. Read its datasheet or silkscreen.
+- Whether App Lab installs `python/requirements.txt` (BirdNET needs `birdnetlib` or `tflite-runtime` plus `librosa`). Check this on the board.
+- BirdNET's speed and memory use on the UNO Q's Cortex-A53 with 2 GB of RAM.
 - The ModulinoBuzzer API (`tone(freq, ms)`?). Check the library examples before relying on it.
 - The PlatformIO `board =` value for the Atech "2.2 frame" board (post-MVP).
 
