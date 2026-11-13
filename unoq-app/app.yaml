@@ -1,8 +1,8 @@
 name: Junction Voice Hub
-description: On-device keyword spotting that controls the MCU and remote ESP32 nodes over MQTT
+description: On-device keyword spotting on the UNO Q; the MCU reacts on the LED matrix
 icon: 🎙️
 
 bricks:
-  # Swap the model in App Lab (AI Models → your Edge Impulse model).
-  # If you need several keywords, switch to the audio classification brick.
-  - arduino/keyword_spotting
+  # Stock model detects "hey_arduino". Swap in our Edge Impulse model later
+  # (App Lab → AI Models). Several keywords need a custom model.
+  - arduino:keyword_spotting

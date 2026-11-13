@@ -1,1 +1,1 @@
-paho-mqtt>=2.0
+# Linux-side deps beyond the App Lab runtime. Empty for the MVP (no MQTT).
