@@ -19,8 +19,17 @@ uint8_t detect_frame[FRAME_SIZE] = {  // speaker-ish "heard it" glyph
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 
+const unsigned long SHOW_MS = 1000;
+
+// Written by the Bridge handler, read by loop(). The handler only records the
+// event and returns, so Python's Bridge.call (and the mic) is never held up.
+volatile unsigned long detected_at = 0;
+volatile bool pending = false;
+bool showing = false;
+
 void keyword_detected() {
-  // TODO(human): show detect_frame, then return to idle_frame.
+  detected_at = millis();  // a repeat call while showing extends the glyph
+  pending = true;
 }
 
 void setup() {
@@ -34,4 +43,16 @@ void setup() {
 }
 
 void loop() {
+  // All matrix drawing happens here, never in the Bridge handler.
+  if (pending) {
+    pending = false;
+    if (!showing) {
+      matrix.draw(detect_frame);
+      showing = true;
+    }
+  }
+  if (showing && millis() - detected_at >= SHOW_MS) {  // wrap-safe subtraction
+    matrix.draw(idle_frame);
+    showing = false;
+  }
 }

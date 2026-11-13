@@ -12,8 +12,8 @@ The full brief is the "Project_Chirp" Google Doc linked from README.md; it is th
 
 ## Milestones
 1. **demo-v0 (stock check):** the stock "Hey Arduino" KWS example runs on our board. This proves the mic, the Brick and Bridge.
-2. **demo-v1 (MVP):** the only priority right now. USB mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp. Python writes to SQLite with separate `detections` (id, ts, station, species, confidence, model_version, clip) and `listening_sessions` (station, start, end) tables, so rates are right from day one.
-3. **demo-v2:** a dashboard served from the UNO Q (map, station status, per-station rate markers, species and date filters, a detail panel) over one live station plus clearly labelled seeded stations and history.
+2. **demo-v1 (MVP):** the only priority right now. Camera mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp.
+3. **demo-v2:** the UNO Q uploads each analysed window (recording ID, station, capture time, duration, predictions, clip) over HTTP to a **laptop backend**: FastAPI, SQLite, clips on disk, and a Leaflet dashboard with a local map-image fallback. Keep `detections` and analysed `listening` intervals in separate tables so rates are right from day one. Uploads retry with the same recording ID, so a retry never creates a duplicate. Full plan: `docs/implementation-plan.md`.
 4. **Network:** the two Atech ESP32 nodes become listening stations that stream to the UNO Q as the edge gateway, with heartbeats for online/offline. This is only possible if the Atech mics expose waveform samples rather than a sound level, so check that first. If they can't, the nodes report activity level and status only.
 5. Stretch: an on-demand camera livestream, human review states, multi-season trends on real data.
 
@@ -43,7 +43,8 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart
 
 ## Still unverified
 - Whether App Lab follows a symlink from `~/ArduinoApps/` into the repo clone. If it doesn't, use `tools/deploy.sh`.
-- Whether the kit camera has a mic.
+- The kit camera's mic: Ryan reports that it has one, but we haven't captured audio from it on the board yet.
+- Whether BirdNET runs on the UNO Q. So far it has only run in Chrome on a laptop: a 2-minute sample took 8.7 s.
 - Whether the Atech microphone gives waveform samples (analogue output we can sample at 16 kHz or more, or I2S) or only a sound level. Read its datasheet or silkscreen.
 - Whether App Lab installs `python/requirements.txt` (BirdNET needs `birdnetlib` or `tflite-runtime` plus `librosa`). Check this on the board.
 - BirdNET's speed and memory use on the UNO Q's Cortex-A53 with 2 GB of RAM.

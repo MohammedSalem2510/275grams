@@ -23,7 +23,7 @@ These are proposed roles; swap people to match individual strengths while retain
 | Computer scientist | Backend, storage and dashboard integration | Detection ingestion, queries and evidence playback |
 | Mechatronic engineer 2 | Map interface, test recordings and demo validation | Station map, filters, test results and demonstration script |
 
-The UNO Q owner controls board deployments. Integrate through small branches and PRs, following the repository’s existing rules.
+The UNO Q owner controls board deployments. Commit straight to `main` (see CLAUDE.md for the rules).
 
 ## Milestones and checkpoints
 
