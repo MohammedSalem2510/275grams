@@ -42,8 +42,13 @@ def accept(p: dict) -> bool:
     return False
 
 
+MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "20%")  # camera default 100% (+16 dB) clips on room noise alone
+
+
 def listen():
-    cmd = ["arecord", "-q", "-D", MIC, "-t", "raw", "-f", "S16_LE", "-c", "1", "-r", "48000"]
+    # Boot default overloads the camera mic; set gain every start (no sudo needed).
+    subprocess.run(["amixer", "-q", "-c", "Camera", "sset", "Mic", MIC_GAIN], check=False)
+    cmd =["arecord", "-q", "-D", MIC, "-t", "raw", "-f", "S16_LE", "-c", "1", "-r", "48000"]
     with subprocess.Popen(cmd, stdout=subprocess.PIPE) as mic:
         analysed = 0
         for p in predict(lambda: mic.stdout.read(WINDOW_BYTES), MODEL_DIR, None, THRESHOLD):

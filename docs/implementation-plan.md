@@ -97,7 +97,7 @@ The UNO Q owner controls board deployments. Commit straight to `main` (see CLAUD
 
 First, find out what "inaccurate" means, because each symptom has a different fix: wrong species, missed calls, or false detections in silence or noise. Then work through these steps in order and re-test after each one, using the same reference clips at the same distance.
 
-1. **Fix the input before processing it.** On the board, run `alsamixer -c Camera`, press F4 for capture, and set the level just below clipping. Turn off automatic gain if the camera has it. In demos, play calls from 0.5–1 m away, facing the camera.
+1. **Fix the input before processing it.** *Measured:* at the default `Mic` 100 %, room noise alone clipped 22 % of samples, with no mains hum and almost no energy below 150 Hz. At 20 % there was no clipping and peaks were around −10 dBFS, so `main.py` now sets 20 % at startup. Re-check with a real call at demo distance. On the board, run `alsamixer -c Camera`, press F4 for capture, and set the level just below clipping. Turn off automatic gain if the camera has it. In demos, play calls from 0.5–1 m away, facing the camera.
 2. **Add a high-pass filter at about 150 Hz** in `bird_audio.predict()`. It removes hum from fans, air conditioning and mains power, and almost no birdsong is that low. This is cheap and safe.
 3. **Don't apply heavy spectral noise reduction.** BirdNET was trained on noisy field recordings, and the artefacts denoising leaves usually make accuracy worse, not better.
 4. **Overlap the windows.** Analyse a 3 s window every 1.5 s so a call that falls across two windows isn't split. Do this only if `inference_s` stays well under 1.5 s. Count only the analysed listening time.
