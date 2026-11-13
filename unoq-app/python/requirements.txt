@@ -1,1 +1,3 @@
-# Linux-side deps beyond the App Lab runtime. Empty for the MVP (no MQTT).
+# Installed by App Lab if supported (unverified). main.py falls back to ~/chirp-test/lib.
+ai_edge_litert
+numpy

@@ -27,7 +27,7 @@ volatile unsigned long detected_at = 0;
 volatile bool pending = false;
 bool showing = false;
 
-void keyword_detected() {
+void bird_detected() {
   detected_at = millis();  // a repeat call while showing extends the glyph
   pending = true;
 }
@@ -39,7 +39,7 @@ void setup() {
   matrix.draw(idle_frame);
 
   Bridge.begin();
-  Bridge.provide("keyword_detected", keyword_detected);
+  Bridge.provide("bird_detected", bird_detected);
 }
 
 void loop() {

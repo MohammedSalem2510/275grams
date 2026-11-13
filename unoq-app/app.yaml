@@ -1,8 +1,6 @@
-name: Junction Voice Hub
-description: On-device keyword spotting on the UNO Q; the MCU reacts on the LED matrix
-icon: 🎙️
+name: Chirp Station
+description: Chirp station - BirdNET on the camera mic; the MCU reacts on the LED matrix
+icon: 🐦
 
-bricks:
-  # Stock model detects "hey_arduino". Swap in our Edge Impulse model later
-  # (App Lab → AI Models). Several keywords need a custom model.
-  - arduino:keyword_spotting
+# No Bricks: BirdNET runs directly from python/ (bird_audio.py).
+bricks: []

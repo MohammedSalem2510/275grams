@@ -12,16 +12,21 @@ import numpy as np
 from ai_edge_litert.interpreter import Interpreter
 
 
-def classify(read_window, model_dir, windows, threshold):
+WINDOW_BYTES = 288000  # 3 s of 48 kHz mono S16_LE
+
+
+def predict(read_window, model_dir, windows=None, threshold=0.5):
+    """Yield one dict per 3 s window; windows=None runs until read_window runs dry."""
     prefix = "BirdNET_GLOBAL_6K_V2.4"
     labels = (model_dir / f"{prefix}_Labels.txt").read_text().splitlines()
     model = Interpreter(str(model_dir / f"{prefix}_Model_FP32.tflite"), num_threads=2)
     model.allocate_tensors()
     input_id = model.get_input_details()[0]["index"]
     output_id = model.get_output_details()[0]["index"]
-    for index in range(windows):
+    index = 0
+    while windows is None or index < windows:
         raw = read_window()
-        if len(raw) != 288000:
+        if len(raw) != WINDOW_BYTES:
             break
         started = time.monotonic()
         samples = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768
@@ -30,8 +35,14 @@ def classify(read_window, model_dir, windows, threshold):
         logits = model.get_tensor(output_id)[0]
         scores = 1 / (1 + np.exp(-np.clip(logits, -80, 80)))
         best = int(np.argmax(scores))
-        print(json.dumps(dict(start_s=3 * index, species=labels[best] if scores[best] >= threshold else None,
-                              score=round(float(scores[best]), 4), inference_s=round(time.monotonic() - started, 3))), flush=True)
+        yield dict(start_s=3 * index, species=labels[best] if scores[best] >= threshold else None,
+                   score=round(float(scores[best]), 4), inference_s=round(time.monotonic() - started, 3))
+        index += 1
+
+
+def classify(read_window, model_dir, windows, threshold):
+    for row in predict(read_window, model_dir, windows, threshold):
+        print(json.dumps(row), flush=True)
 
 
 def main():
