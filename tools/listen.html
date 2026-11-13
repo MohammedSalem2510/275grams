@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chirp · Recording analysis</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f3e9;color:#19382d;font:16px "Segoe UI",sans-serif}main{max-width:760px;margin:auto;padding:48px 24px}header{border-bottom:1px solid #adb8a9;padding-bottom:18px;font-weight:700;letter-spacing:.08em}h1{font:normal clamp(40px,7vw,64px) Georgia,serif;margin:42px 0 12px}section{background:#fffefa;border:1px solid #cad2c4;padding:24px;border-radius:14px;margin:24px 0}button,input{font:inherit}button{background:#245742;color:white;border:0;border-radius:7px;padding:11px 16px;cursor:pointer}button:disabled{opacity:.5}button+button{background:#e2ecdf;color:#19382d}input{display:block;margin-bottom:18px;max-width:100%}audio{width:100%;margin-top:16px}table{border-collapse:collapse;width:100%}td,th{text-align:left;padding:10px 5px;border-bottom:1px solid #d4dace}small{color:#4b6156}
+</style>
+<main><header>CHIRP</header><h1>Listen for birds.</h1><p>Upload a recording for BirdNET analysis on the Arduino UNO Q.</p>
+<section><label for="clip">Audio recording</label><input id="clip" type="file" accept="audio/*">
+<button id="analyse" disabled>Analyse recording</button> <button id="sample">Try sample recording</button>
+<audio id="player" controls hidden></audio><p><small>Analyses up to two minutes in three-second windows. Short final windows are padded with silence.</small></p></section>
+<p id="status" role="status"></p><table id="results" hidden><thead><tr><th>Time</th><th>Prediction</th><th>Model score</th></tr></thead><tbody></tbody></table></main>
+<script>
+const el=id=>document.getElementById(id);
+const clip=el('clip'), analyse=el('analyse'), sample=el('sample'), player=el('player'), results=el('results');
+let preview;
+function showAudio(blob){if(preview)URL.revokeObjectURL(preview);preview=URL.createObjectURL(blob);player.src=preview;player.hidden=false}
+clip.onchange=()=>{analyse.disabled=!clip.files.length;results.hidden=true;el('status').textContent='';if(clip.files.length)showAudio(clip.files[0])};
+async function run(useSample){
+  clip.disabled=analyse.disabled=sample.disabled=true;results.hidden=true;
+  el('status').textContent='Preparing audio…';
+  try{
+    let file=clip.files[0];
+    if(useSample){const r=await fetch('/sample.wav');if(!r.ok)throw Error('Could not read the sample from the board.');file=await r.blob()}
+    showAudio(file);
+    const context=new OfflineAudioContext(1,1,48000);
+    const decoded=await context.decodeAudioData(await file.arrayBuffer());
+    const frames=Math.min(decoded.length,5760000), pcm=new Int16Array(Math.ceil(frames/144000)*144000);
+    for(let i=0;i<frames;i++){let v=0;for(let c=0;c<decoded.numberOfChannels;c++)v+=decoded.getChannelData(c)[i];pcm[i]=Math.round(32767*Math.max(-1,Math.min(1,v/decoded.numberOfChannels)))}
+    el('status').textContent='Analysing on the UNO Q…';
+    const r=await fetch('/analyse',{method:'POST',headers:{'Content-Type':'application/octet-stream'},body:pcm.buffer});
+    if(!r.ok)throw Error(await r.text());
+    const rows=await r.json(),body=results.tBodies[0];body.replaceChildren();
+    for(const row of rows.filter(x=>x.species)){const tr=body.insertRow();for(const value of [row.start_s+' s',row.species.split('_').pop(),row.score.toFixed(3)])tr.insertCell().textContent=value}
+    results.hidden=!body.rows.length;
+    el('status').textContent=(useSample?'Sample recording':file.name)+' · '+rows.length+' windows analysed · '+body.rows.length+' above the 0.50 threshold.';
+  }catch(e){el('status').textContent=e.message}
+  finally{clip.disabled=sample.disabled=false;analyse.disabled=!clip.files.length}
+}
+analyse.onclick=()=>run(false);sample.onclick=()=>run(true);
+</script></html>

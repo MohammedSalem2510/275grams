@@ -15,6 +15,25 @@ On-device voice control on an **Arduino UNO Q**, with two **ESP32-based Atech bo
 
 [Google Doc](https://docs.google.com/document/d/1t4BtwcmLkrue99UclOt9XjlUw0V_pBga41g4tzjcazQ/edit?usp=sharing)
 
+## Tested BirdNET demo on Chirp
+
+With the USB webcam plugged into the powered hub, connect over SSH as `arduino` and run:
+
+```sh
+cd ~/chirp-test
+PYTHONPATH=lib python3 bird_audio.py --device 'plughw:CARD=Camera,DEV=0' --windows 5
+```
+
+This uses the BirdNET v2.4 model and runtime installed on the team's UNO Q. Each line reports one three-second window. The default score threshold is 0.50. For a file test, replace the device argument with `--wav soundscape.wav` and set `--windows 40` for the full sample. WAV input uses mono 16-bit PCM at 48 kHz.
+
+For the laptop upload GUI, connect the team's UNO Q directly by USB. From the repository root on Windows, run the following and open [localhost:8765](http://localhost:8765):
+
+```powershell
+python tools/listen_gui.py "$env:LOCALAPPDATA\Arduino15\packages\arduino\tools\adb\32.0.0\adb.exe"
+```
+
+The GUI sends audio to the board over ADB. The webcam command runs on the board over SSH. App Lab still launches the stock keyword example. The model, runtime and example recording are installed separately on the board.
+
 ## Layout
 
 | Folder | What | Owner |
