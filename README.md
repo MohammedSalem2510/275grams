@@ -11,6 +11,10 @@ On-device voice control on an **Arduino UNO Q**, with two **ESP32-based Atech bo
      Atech node 1        Atech node 2
 ```
 
+## Project document
+
+[Google Doc](https://docs.google.com/document/d/1t4BtwcmLkrue99UclOt9XjlUw0V_pBga41g4tzjcazQ/edit?usp=sharing)
+
 ## Layout
 
 | Folder | What | Owner |
