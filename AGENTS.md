@@ -43,6 +43,7 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart
 
 ## Verified on our board (Ryan, commit 2b4ebf9)
 - The kit camera mic works as ALSA device `plughw:CARD=Camera,DEV=0` on the powered hub. Its only mixer control is `Mic` (0–256, no automatic gain control). The boot default of 100 % (+16 dB) clips on room noise alone. 20 % (+3.2 dB) peaks around −10 dBFS on hackathon room noise, and `main.py` sets it at startup. `arecord` gives about 0.5 s of digital silence at the start of each capture.
+- First live test: a phone playing a chaffinch at about 1 m, mic at 20 %. BirdNET gave `Fringilla coelebs` 0.59 and 0.72 in two windows, then `Human vocal` 0.56 when people talked. That's one controlled test, not an accuracy figure. Peaks reached −2 dBFS with no clipping. Inference takes **0.26–0.32 s per 3 s window** (about 10× real time), so overlapping windows are affordable.
 - SSH: the board's hostname is `Chirp`. On Junction Wi-Fi its IP was 10.0.41.148, which may change.
 - BirdNET v2.4 (`BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite`) runs on the board through `ai_edge_litert`, 2 threads, on 3 s windows of 48 kHz mono S16_LE (288 000 bytes). Script: `unoq-app/python/bird_audio.py`. The model and runtime live in `~/chirp-test` on the board, not in git.
 - The board is reachable over USB with Arduino's `adb.exe` (`%LOCALAPPDATA%\Arduino15\packages\arduino\tools\adb\32.0.0\adb.exe`) when Wi-Fi discovery fails.
@@ -51,7 +52,7 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart
 - Whether App Lab follows a symlink from `~/ArduinoApps/` into the repo clone. If it doesn't, use `tools/deploy.sh`.
 - Whether the Atech microphone gives waveform samples (analogue output we can sample at 16 kHz or more, or I2S) or only a sound level. Read its datasheet or silkscreen.
 - Whether App Lab installs `python/requirements.txt` (BirdNET needs `ai_edge_litert` and `numpy`). Check this on the board.
-- BirdNET's sustained speed and memory use on the board (`inference_s` is printed per window but not yet recorded here).
+- BirdNET's sustained memory use and its behaviour over long runs.
 - Whether App Lab's Python runtime can import `ai_edge_litert` (so far BirdNET has only run from an SSH shell, outside App Lab).
 - The ModulinoBuzzer API (`tone(freq, ms)`?). Check the library examples before relying on it.
 - The PlatformIO `board =` value for the Atech "2.2 frame" board (post-MVP).
