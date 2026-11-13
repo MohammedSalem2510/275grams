@@ -41,13 +41,17 @@ Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart
 - LED matrix: 13 × 8 = 104 px. Use `matrix.begin()`, `matrix.setGrayscaleBits(3)`, then `matrix.draw(uint8_t frame[104])` with values 0–7.
 - Modulino: `Modulino.begin(Wire1);` on the UNO Q, then `while (!buzzer.begin()) delay(1000);`.
 
+## Verified on our board (Ryan, commit 2b4ebf9)
+- The kit camera mic works as ALSA device `plughw:CARD=Camera,DEV=0` on the powered hub.
+- BirdNET v2.4 (`BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite`) runs on the board through `ai_edge_litert`, 2 threads, on 3 s windows of 48 kHz mono S16_LE (288 000 bytes). Script: `unoq-app/python/bird_audio.py`. The model and runtime live in `~/chirp-test` on the board, not in git.
+- The board is reachable over USB with Arduino's `adb.exe` (`%LOCALAPPDATA%\Arduino15\packagesrduino	oolsdb.0.0db.exe`) when Wi-Fi discovery fails.
+
 ## Still unverified
 - Whether App Lab follows a symlink from `~/ArduinoApps/` into the repo clone. If it doesn't, use `tools/deploy.sh`.
-- The kit camera's mic: Ryan reports that it has one, but we haven't captured audio from it on the board yet.
-- Whether BirdNET runs on the UNO Q. So far it has only run in Chrome on a laptop: a 2-minute sample took 8.7 s.
 - Whether the Atech microphone gives waveform samples (analogue output we can sample at 16 kHz or more, or I2S) or only a sound level. Read its datasheet or silkscreen.
 - Whether App Lab installs `python/requirements.txt` (BirdNET needs `birdnetlib` or `tflite-runtime` plus `librosa`). Check this on the board.
-- BirdNET's speed and memory use on the UNO Q's Cortex-A53 with 2 GB of RAM.
+- BirdNET's sustained speed and memory use on the board (`inference_s` is printed per window but not yet recorded here).
+- Whether App Lab's Python runtime can import `ai_edge_litert` (so far BirdNET has only run from an SSH shell, outside App Lab).
 - The ModulinoBuzzer API (`tone(freq, ms)`?). Check the library examples before relying on it.
 - The PlatformIO `board =` value for the Atech "2.2 frame" board (post-MVP).
 
