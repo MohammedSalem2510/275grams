@@ -1,7 +1,10 @@
-# Matches the stock App Lab examples: no fqbn, Bridge + LED matrix ship with the platform.
+# Bridge + LED matrix ship with the platform, but Arduino_RPClite (used by
+# Arduino_RouterBridge) depends on MsgPack, which profiles must list explicitly.
 # Adding Modulino: pick Arduino_Modulino in App Lab's library manager and let it rewrite this.
 profiles:
   default:
     platforms:
       - platform: arduino:zephyr
+    libraries:
+      - MsgPack (0.4.2)
 default_profile: default
