@@ -39,8 +39,16 @@ def predict(read_window, model_dir, windows=None, threshold=0.5, skip=None):
         logits = model.get_tensor(output_id)[0]
         scores = 1 / (1 + np.exp(-np.clip(logits, -80, 80)))
         best = int(np.argmax(scores))
+        # BirdNET is multi-label: a quiet bird can score well while a louder non-bird
+        # label (wind, engine) wins the argmax. Keep every label above a low floor.
+        order = np.argsort(scores)[::-1][:10]
+        ranked = [(labels[i], round(float(scores[i]), 4)) for i in order if scores[i] >= 0.1]
+        level = np.abs(samples)
         yield dict(start_s=3 * index, top=labels[best], species=labels[best] if scores[best] >= threshold else None,
-                   score=round(float(scores[best]), 4), inference_s=round(time.monotonic() - started, 3))
+                   score=round(float(scores[best]), 4), ranked=ranked,
+                   peak_dbfs=round(20 * float(np.log10(max(level.max(), 1e-6))), 1),
+                   clipped=round(float(np.mean(level >= 0.999)), 4),
+                   inference_s=round(time.monotonic() - started, 3))
         index += 1
 
 

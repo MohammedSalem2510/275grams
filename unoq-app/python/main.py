@@ -23,7 +23,10 @@ MODEL_DIR = Path(os.environ.get("CHIRP_MODEL_DIR", Path(__file__).resolve().pare
 from bird_audio import WINDOW_BYTES, predict
 
 MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
-THRESHOLD = 0.5
+# BirdNET confidence for a listed Finnish species (not accuracy). 0.5 missed quiet birds
+# outdoors; the 269-species list acts as the location filter that makes a lower value usable.
+THRESHOLD = float(os.environ.get("CHIRP_THRESHOLD", "0.25"))
+MAX_SPECIES = 3  # per 3 s window
 MODEL_VERSION = "BirdNET_GLOBAL_6K_V2.4"
 STATION_ID = os.environ.get("CHIRP_STATION", "chirp-1")
 # Laptop running dashboard/server.py. Set it per board, never in git (venue DHCP changes it):
@@ -85,18 +88,27 @@ FINNISH_SPECIES = {
 }
 
 
-def accept(p: dict) -> bool:
-    """Decide whether one window's prediction counts as a detection."""
-    label = p["species"]
-    if label is None or "Human" in label:  # privacy: speech never becomes evidence
-        return False
-    if label in FINNISH_SPECIES:
-        return True
-    print(f"[chirp] unlisted, not counted: {label} {p['score']}", flush=True)  # kept reviewable
-    return False
+SPEECH_SCORE = 0.2  # privacy: a window is dropped if any human label scores this high
 
 
-MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "100%")  # field default (+16 dB); clips indoors on room noise, use 20% for demos
+def has_speech(p: dict) -> bool:
+    return any("Human" in label and score >= SPEECH_SCORE for label, score in p["ranked"])
+
+
+def accept(p: dict) -> list[dict]:
+    """The window's detections: every listed Finnish species at or above THRESHOLD, best first."""
+    if has_speech(p):  # privacy: the whole window goes, even if a bird outscored the voice
+        return []
+    found = [{"species": label, "score": score} for label, score in p["ranked"]
+             if score >= THRESHOLD and label in FINNISH_SPECIES][:MAX_SPECIES]
+    if not found and p["species"] and "Human" not in p["species"] and p["species"] not in FINNISH_SPECIES:
+        print(f"[chirp] unlisted, not counted: {p['species']} {p['score']}", flush=True)  # kept reviewable
+    return found
+
+
+# Camera mic, no AGC: 100% = +16 dB. Outdoors needs it for distant birds; indoors it clips on
+# room noise (use CHIRP_MIC_GAIN=20%). Clipping is logged so the level can be checked in the field.
+MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "100%")
 
 # ---------- Field recording (off unless the flag file exists) ----------
 # Turn on for a field session:   touch ~/repo/unoq-app/python/record_audio   then restart the app
@@ -104,7 +116,6 @@ APP_DIR = Path(__file__).resolve().parent.parent
 RECORD_FLAG = Path(__file__).with_name("record_audio")  # gitignored
 RECORDINGS = APP_DIR / "recordings"                     # gitignored; raw audio never goes in git
 MIN_FREE_BYTES = 1_000_000_000                          # stop recording below 1 GB free
-SPEECH_SCORE = 0.2  # privacy: purge a clip if speech is even weakly the top label
 
 
 class MinuteRecorder:
@@ -190,20 +201,23 @@ def listen():
         analysed = 0
         for p in predict(read_window, MODEL_DIR, None, THRESHOLD, skip=skip_window):
             analysed += 1  # every analysed window counts as 3 s of listening, detection or not
-            ok = accept(p)
+            found = accept(p)
+            ok = bool(found)
             if ok:
-                print(json.dumps(p), flush=True)
+                print(json.dumps({"detections": found, "peak_dbfs": p["peak_dbfs"]}), flush=True)
                 Bridge.call("bird_detected")
             elif analysed % 20 == 0:
                 print(f"[chirp] {analysed * 3} s analysed, last inference {p['inference_s']} s, "
-                      f"duty {mcu['duty']:.0%}, temp {mcu['temperature_c']}, "
+                      f"peak {p['peak_dbfs']} dBFS, duty {mcu['duty']:.0%}, temp {mcu['temperature_c']}, "
                       f"{outbox.qsize()} awaiting upload", flush=True)
+            if p["clipped"] > 0.01:
+                print(f"[chirp] clipping: {p['clipped']:.1%} of samples at gain {MIC_GAIN}", flush=True)
             # Window ended just before inference started; approximate its start from that.
             start = datetime.fromtimestamp(time.time() - p["inference_s"] - 3, timezone.utc)
             clip, offset = (None, None)
             if recorder:
                 clip, offset = recorder.write(last_raw[0], start)  # write first: may open a new file
-                if "Human" in p["top"] and p["score"] >= SPEECH_SCORE:
+                if has_speech(p):
                     recorder.mark_speech()  # ...so the file holding this window is the one purged
                     clip, offset = None, None
             window_id = uuid.uuid4().hex
@@ -211,7 +225,7 @@ def listen():
                 keep_evidence(window_id, last_raw[0])
             window = {"window_id": window_id, "station_id": STATION_ID,
                       "start": start.isoformat(), "duration_s": 3.0, "model_version": MODEL_VERSION,
-                      "detections": [{"species": p["species"], "score": p["score"]}] if ok else [],
+                      "detections": found,
                       "temperature_c": mcu["temperature_c"], "duty": mcu["duty"],
                       "clip": clip, "clip_offset_s": offset}
             try:
