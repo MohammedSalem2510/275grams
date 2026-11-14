@@ -23,10 +23,7 @@ MODEL_DIR = Path(os.environ.get("CHIRP_MODEL_DIR", Path(__file__).resolve().pare
 from bird_audio import WINDOW_BYTES, predict
 
 MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
-# BirdNET confidence for a listed Finnish species (not accuracy). 0.5 missed quiet birds
-# outdoors; the 269-species list acts as the location filter that makes a lower value usable.
-THRESHOLD = float(os.environ.get("CHIRP_THRESHOLD", "0.25"))
-MAX_SPECIES = 3  # per 3 s window
+THRESHOLD = 0.5
 MODEL_VERSION = "BirdNET_GLOBAL_6K_V2.4"
 STATION_ID = os.environ.get("CHIRP_STATION", "chirp-1")
 # Laptop running dashboard/server.py. Set it per board, never in git (venue DHCP changes it):
@@ -88,21 +85,18 @@ FINNISH_SPECIES = {
 }
 
 
-def accept(p: dict) -> list[dict]:
-    """The window's detections: every listed Finnish species at or above THRESHOLD, best first.
-    Speech alone never becomes a detection (human labels aren't listed); a bird heard over
-    people talking still counts, and its clip may contain that background speech."""
-    found = [{"species": label, "score": score} for label, score in p["ranked"]
-             if score >= THRESHOLD and label in FINNISH_SPECIES][:MAX_SPECIES]
-    if not found and p["species"] and "Human" not in p["species"] and p["species"] not in FINNISH_SPECIES:
-        print(f"[chirp] unlisted, not counted: {p['species']} {p['score']}", flush=True)  # kept reviewable
-    return found
+def accept(p: dict) -> bool:
+    """Decide whether one window's prediction counts as a detection."""
+    label = p["species"]
+    if label is None or "Human" in label:  # privacy: speech never becomes evidence
+        return False
+    if label in FINNISH_SPECIES:
+        return True
+    print(f"[chirp] unlisted, not counted: {label} {p['score']}", flush=True)  # kept reviewable
+    return False
 
 
-# Camera mic, no AGC: 20% = +3.2 dB (verified indoors), 60% = +9.6 dB, 100% = +16 dB. Outdoors
-# 60-100% all clipped 1-2% on loud close sources, so back to the verified 20%.
-# Clipping is logged so the level can be checked in the field.
-MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "20%")
+MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "20%")  # camera default 100% (+16 dB) clips on room noise alone
 
 # ---------- Field recording (off unless the flag file exists) ----------
 # Turn on for a field session:   touch ~/repo/unoq-app/python/record_audio   then restart the app
@@ -110,7 +104,7 @@ APP_DIR = Path(__file__).resolve().parent.parent
 RECORD_FLAG = Path(__file__).with_name("record_audio")  # gitignored
 RECORDINGS = APP_DIR / "recordings"                     # gitignored; raw audio never goes in git
 MIN_FREE_BYTES = 1_000_000_000                          # stop recording below 1 GB free
-SPEECH_SCORE = 0.2  # privacy: purge a field-recording file if speech is even weakly the top label
+SPEECH_SCORE = 0.2  # privacy: purge a clip if speech is even weakly the top label
 
 
 class MinuteRecorder:
@@ -172,19 +166,12 @@ def poll_mcu():
         print(f"[chirp] MCU context unavailable ({e})", flush=True)
 
 
-# Overlapping windows: BirdNET always sees 3 s, but a new window starts every HOP_S, so a call
-# on a boundary isn't split. Each window adds HOP_S of listening (protocol/http.md).
-HOP_S = 1.5
-HOP_BYTES = WINDOW_BYTES // 2
-WINDOWS_PER_MIN = round(60 / HOP_S)
-
-
 def skip_window(state={"slot": 0}) -> bool:
-    """Duty cycle: analyse the first duty share of each minute's windows, skip the rest."""
+    """Duty cycle: analyse the first duty x 20 windows of every 20 (one minute), skip the rest."""
     poll_mcu()
     slot = state["slot"]
-    state["slot"] = (slot + 1) % WINDOWS_PER_MIN
-    return slot >= round(mcu["duty"] * WINDOWS_PER_MIN)
+    state["slot"] = (slot + 1) % 20
+    return slot >= round(mcu["duty"] * 20)
 
 
 def listen():
@@ -193,42 +180,29 @@ def listen():
     cmd =["arecord", "-q", "-D", MIC, "-t", "raw", "-f", "S16_LE", "-c", "1", "-r", "48000"]
     recorder = MinuteRecorder(RECORDINGS) if RECORD_FLAG.exists() else None
     print(f"[chirp] field recording {'ON -> ' + str(RECORDINGS) if recorder else 'off'}", flush=True)
-    last_raw, new_chunk = [b""], [b""]
+    last_raw = [b""]
 
     def read_window():
-        """Slide the 3 s window on by one hop: keep the newer half, append HOP_S of fresh audio."""
-        need = WINDOW_BYTES if not last_raw[0] else HOP_BYTES
-        chunk = mic.stdout.read(need)
-        if len(chunk) != need:
-            return b""  # mic stopped
-        new_chunk[0] = chunk  # all 3 s on the first read, one hop after that
-        last_raw[0] = (last_raw[0] + chunk)[-WINDOW_BYTES:]
+        last_raw[0] = mic.stdout.read(WINDOW_BYTES)
         return last_raw[0]
 
     with subprocess.Popen(cmd, stdout=subprocess.PIPE) as mic:
         analysed = 0
         for p in predict(read_window, MODEL_DIR, None, THRESHOLD, skip=skip_window):
-            analysed += 1  # every analysed window adds HOP_S of listening, detection or not
-            found = accept(p)
-            ok = bool(found)
+            analysed += 1  # every analysed window counts as 3 s of listening, detection or not
+            ok = accept(p)
             if ok:
-                print(json.dumps({"detections": found, "peak_dbfs": p["peak_dbfs"]}), flush=True)
+                print(json.dumps(p), flush=True)
                 Bridge.call("bird_detected")
-            elif analysed % WINDOWS_PER_MIN == 0:
-                print(f"[chirp] {analysed * HOP_S:.0f} s listened, last inference {p['inference_s']} s, "
-                      f"peak {p['peak_dbfs']} dBFS, duty {mcu['duty']:.0%}, temp {mcu['temperature_c']}, "
+            elif analysed % 20 == 0:
+                print(f"[chirp] {analysed * 3} s analysed, last inference {p['inference_s']} s, "
+                      f"duty {mcu['duty']:.0%}, temp {mcu['temperature_c']}, "
                       f"{outbox.qsize()} awaiting upload", flush=True)
-            if p["clipped"] > 0.01:
-                print(f"[chirp] clipping: {p['clipped']:.1%} of samples at gain {MIC_GAIN}", flush=True)
             # Window ended just before inference started; approximate its start from that.
             start = datetime.fromtimestamp(time.time() - p["inference_s"] - 3, timezone.utc)
             clip, offset = (None, None)
             if recorder:
-                # Write only the fresh hop, so overlapping windows don't duplicate audio in the file.
-                # The window's 3 s began one hop before that chunk (clamped at a file start).
-                clip, offset = recorder.write(new_chunk[0], start)  # write first: may open a new file
-                if offset is not None:
-                    offset = max(0.0, offset - HOP_S)
+                clip, offset = recorder.write(last_raw[0], start)  # write first: may open a new file
                 if "Human" in p["top"] and p["score"] >= SPEECH_SCORE:
                     recorder.mark_speech()  # ...so the file holding this window is the one purged
                     clip, offset = None, None
@@ -236,8 +210,8 @@ def listen():
             if ok:
                 keep_evidence(window_id, last_raw[0])
             window = {"window_id": window_id, "station_id": STATION_ID,
-                      "start": start.isoformat(), "duration_s": HOP_S, "model_version": MODEL_VERSION,
-                      "detections": found,
+                      "start": start.isoformat(), "duration_s": 3.0, "model_version": MODEL_VERSION,
+                      "detections": [{"species": p["species"], "score": p["score"]}] if ok else [],
                       "temperature_c": mcu["temperature_c"], "duty": mcu["duty"],
                       "clip": clip, "clip_offset_s": offset}
             try:
