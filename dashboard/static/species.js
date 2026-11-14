@@ -116,5 +116,5 @@
     }
   }
 
-  window.chirpSpecies = {show};
+  window.chirpSpecies = {show, photoFor, birdSvg};  // photos and the fallback bird are shared with alerts.js
 })();

@@ -111,6 +111,15 @@ function placePopup() {
   pop.style.top=top+'px';
 }
 window.chirpPlacePopup=placePopup;
+// Used by the early-warning rows: show one station and species on the map, popup open.
+window.chirpFocus=(stationId,species)=>{
+  const select=$('species');
+  if(species && ![...select.options].some(o=>o.value===species)) select.add(new Option(common(species),species));
+  select.value=species||'';
+  selected=stationId;
+  $('station-popup').hidden=false;
+  refresh();
+};
 function closePopup() {
   const pop=$('station-popup');
   if(pop.hidden) return;
@@ -145,7 +154,7 @@ function render() {
     el.style.top=(15+70*(north-s.lat)/(north-south))+'%';
     return el;
   })));
-  $('detections-station').textContent=station?' · '+station.name:'';
+  document.querySelectorAll('.station-ref').forEach(el=>el.textContent=station?' · '+station.name:'');
   refreshGoogle?.();
   placePopup();
   if(focusPin) document.querySelector('#'+($('google-map').hidden?'sample':'google-map')+' .pin[aria-pressed=true]')?.focus({preventScroll:true});

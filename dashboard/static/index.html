@@ -37,8 +37,6 @@
           <div class="stat"><span class="stat-label">Listened</span><span id="station-listened" class="stat-value"></span></div>
         </div>
         <p id="station-info"></p>
-        <p class="eyebrow popup-section">Species heard here</p>
-        <div id="species-cards"></div>
       </div>
       <div class="legend" aria-label="Map legend">
         <p class="legend-title">Detection-minutes per listening hour</p>
@@ -55,7 +53,20 @@
   </section>
 
   <aside class="panel" aria-label="Controls and details">
-    <section class="card filters toolbar" aria-label="Filters">
+    <div id="alerts-slot"></div>
+
+    <section class="card species-card" aria-label="Species heard at the selected station">
+      <p class="eyebrow">Species heard here<span class="station-ref"></span></p>
+      <div id="species-cards"></div>
+    </section>
+
+    <section class="card detections-card" aria-label="Recent detections">
+      <p class="eyebrow">Recent detections<span id="detections-station" class="station-ref"></span></p>
+      <ul id="detections"></ul>
+    </section>
+
+    <section class="card filters toolbar map-settings" aria-label="Map settings">
+      <p class="eyebrow">Map settings</p>
       <label>Species <select id="species"></select></label>
       <label>Period <select id="period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="">All time</option></select></label>
       <label class="toggle"><input id="heat" type="checkbox" checked> Rate rings</label>
@@ -63,14 +74,6 @@
       <label id="map-tilt-control" class="toggle" hidden><input id="map-tilt" type="checkbox" checked> 3D tilt</label>
     </section>
 
-    <div id="alerts-slot"></div>
-
-    <section class="card detections-card" aria-label="Recent detections">
-      <p class="eyebrow">Recent detections<span id="detections-station"></span></p>
-      <ul id="detections"></ul>
-    </section>
-
-    <p class="note">Detections are not individual animals: one bird calling repeatedly yields several detections. Model scores are not accuracy.</p>
   </aside>
 </div>
 
