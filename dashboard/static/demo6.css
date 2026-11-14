@@ -13,8 +13,9 @@
 .hardware-label { position:absolute; left:50%; bottom:calc(100% + 5px); transform:translateX(-50%); white-space:nowrap; padding:3px 7px; border-radius:4px; background:var(--surface); color:var(--ink); text-shadow:none; font:600 12px/1.2 var(--sans); box-shadow:0 1px 5px #0003; }
 #featured-bird { margin:12px 0; padding:12px 0; border-block:1px solid var(--rule); }
 #featured-bird .sp-card { border:0; padding:0; }
-#featured-bird .sp-play { align-self:flex-start; margin-top:6px; padding:7px 12px; border:1px solid var(--accent-ink); border-radius:18px; background:var(--accent); color:var(--ink); font:600 13px/1.2 var(--sans); cursor:pointer; }
-#featured-bird audio { display:none; }
+.sp-play { display:inline-block; align-self:flex-start; margin-top:6px; padding:7px 12px; border:1px solid var(--accent-ink); border-radius:18px; background:var(--accent); color:var(--ink); font:600 13px/1.2 var(--sans); cursor:pointer; }
+#featured-bird audio, audio.evidence:not([controls]) { display:none; }
+.sp-play:hover { filter:brightness(0.96); }
 .map-controls summary { max-width:32ch; overflow-wrap:anywhere; }
 .heat-note { max-width:260px; font-size:10px; line-height:1.5; color:#64746c; margin:8px 0 0; }
 #activity-heatmap { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }

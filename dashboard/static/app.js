@@ -90,6 +90,24 @@ function items(lines) {
     return li;
   }));
 }
+// The green "Play recording" pill used for every evidence clip (the same style as the latest bird).
+// The <audio> stays in the page without controls; only one clip plays at a time.
+function chirpPlayButton(audio, name) {
+  const play = document.createElement('button');
+  play.type = 'button';
+  play.className = 'sp-play';
+  const idle = () => { play.textContent = '▶ Play recording'; play.setAttribute('aria-label', 'Play recording of '+name); };
+  idle();
+  audio.controls = false;
+  play.onclick = async () => {
+    if (!audio.paused) return audio.pause();
+    document.querySelectorAll('audio').forEach(other => { if (other !== audio) other.pause(); });
+    try { await audio.play(); } catch { play.textContent = 'Retry recording'; }
+  };
+  audio.onplay = () => { play.textContent = 'Ⅱ Pause recording'; play.setAttribute('aria-label', 'Pause recording of '+name); };
+  audio.onpause = audio.onended = idle;
+  return play;
+}
 function detectionItem(row) {
   const li = document.createElement('li');
   li.textContent = common(row.species)+' · '+new Date(row.start).toLocaleString('en-GB',{timeZone:'Europe/Helsinki',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · score '+row.score.toFixed(2);
@@ -100,7 +118,7 @@ function detectionItem(row) {
     audio.src = '/api/evidence/'+encodeURIComponent(row.window_id);
     audio.className = 'evidence';
     audio.setAttribute('aria-label', 'Recording of '+common(row.species));
-    li.append(audio);
+    li.append(chirpPlayButton(audio, common(row.species)), audio);
   }
   return li;
 }

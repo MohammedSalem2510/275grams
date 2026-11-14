@@ -145,20 +145,9 @@
       audio.preload = 'none';
       audio.src = '/api/evidence/' + encodeURIComponent(row.evidence_window_id);
       audio.setAttribute('aria-label', 'Latest recording of ' + name);
-      if (prominent) {
-        const play = el('button', 'sp-play', '▶ Play recording');
-        play.type = 'button';
-        play.setAttribute('aria-label', 'Play recording of ' + name);
-        play.onclick = async () => {
-          if (!audio.paused) return audio.pause();
-          try { await audio.play(); }
-          catch { play.textContent = 'Retry recording'; }
-        };
-        audio.controls = false;
-        audio.onplay = () => { play.textContent = 'Ⅱ Pause recording'; play.setAttribute('aria-label', 'Pause recording of ' + name); };
-        audio.onpause = () => { play.textContent = '▶ Play recording'; play.setAttribute('aria-label', 'Play recording of ' + name); };
-        body.append(play, audio);
-      } else details.append(audio);
+      const play = chirpPlayButton(audio, name);  // defined in app.js: the same green pill everywhere
+      if (prominent) body.append(play, audio);
+      else details.append(play, audio);
     }
     box.append(media, body, details, credit);
     return box;
