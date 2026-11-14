@@ -61,7 +61,7 @@ python -m dashboard.seed_simulated          # optional: labelled synthetic histo
 python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
 ```
 
-Open http://127.0.0.1:8000/. The dashboard includes an offline street map of the Espoo station area. The map, station readings and heatmap load directly from the dashboard server. On the field unit, join the **Chirp** Wi-Fi network and open http://10.42.0.1:8000/map.html on your phone. Choose “stay connected” if the phone reports that the network has no internet. On other networks, append `?offline=1` to the map URL to use the bundled map.
+Open http://127.0.0.1:8000/. On the field unit, join **Chirp** Wi-Fi and open http://10.42.0.1:8000/map.html. The Espoo map and station data load from the board. When your browser can reach an online map provider, the map expands to worldwide coverage using Google Maps or OpenStreetMap. If the phone reports that Chirp Wi-Fi has no internet, choose “stay connected” to keep viewing the local map. Use `?offline=1` to explicitly stay on the bundled map. Open the map filters and tap **Load full map** to try online coverage again.
 
 For online Google Street and Satellite views, copy `dashboard/static/maps-config.js` to `maps-config.local.js` (gitignored) and paste a browser-restricted Maps JavaScript API key into the copy. The bundled Espoo map is a cropped WebP of the [Helsinki metropolitan area general map](https://hri.fi/data/dataset/paakaupunkiseudun-yleiskartta), City of Helsinki, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Its viewer uses Leaflet 1.9.4 under the [BSD licence](dashboard/static/vendor/leaflet/LICENSE).
 

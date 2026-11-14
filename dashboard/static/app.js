@@ -7,7 +7,7 @@ const fieldBounds = [[60.0603391224,24.5558435501],[60.2792946268,24.9241528166]
 const fieldMap = L.map('sample', {zoomControl:false, minZoom:10, maxZoom:15, zoomSnap:0.25,
   maxBounds:L.latLngBounds(fieldBounds).pad(0.35)}).setView([60.17,24.74],12);
 L.control.zoom({position:'bottomright'}).addTo(fieldMap);
-L.imageOverlay('espoo-field-map.webp', fieldBounds, {attribution:
+const fieldImage = L.imageOverlay('espoo-field-map.webp', fieldBounds, {attribution:
   '<a href="https://hri.fi/data/dataset/paakaupunkiseudun-yleiskartta">City of Helsinki</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>'}).addTo(fieldMap);
 const fieldPins=L.layerGroup().addTo(fieldMap);
 let fieldFramed=false;
@@ -253,15 +253,63 @@ function googleFallback() {
   $('map-tilt-control').hidden=true;
   $('sample').hidden=false;
   $('map-status').textContent='Espoo · offline map';
+  $('load-online-map').hidden=false;
   fieldMap.invalidateSize();
   render();
   scheduleHeatmap();
 }
+// Show the bundled map until an online provider has actually delivered map imagery.
+let streetTiles;
+function tryStreetMap() {
+  if (streetTiles || navigator.onLine === false) return;
+  const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom:19, opacity:0,
+    attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'
+  });
+  streetTiles = tiles;
+  let loaded = 0;
+  const stop = () => {
+    if (streetTiles !== tiles) return;
+    clearTimeout(timeout);
+    streetTiles = undefined;
+    tiles.remove();
+    fieldImage.addTo(fieldMap);
+    fieldMap.setMinZoom(10).setMaxZoom(15).setMaxBounds(L.latLngBounds(fieldBounds).pad(0.35));
+    $('map-status').textContent = 'Espoo · offline map';
+    $('load-online-map').hidden=false;
+    window.removeEventListener('offline',stop);
+  };
+  const timeout = setTimeout(stop,12000);
+  window.addEventListener('offline',stop);
+  tiles.on('loading',()=>{loaded=0;});
+  tiles.on('tileload',()=>{
+    if (streetTiles !== tiles) return;
+    loaded++;
+    if (!fieldMap.hasLayer(fieldImage)) return;
+    clearTimeout(timeout);
+    tiles.setOpacity(1);
+    fieldImage.remove();
+    fieldMap.setMaxBounds(null).setMinZoom(2).setMaxZoom(19);
+    $('map-status').textContent = 'OpenStreetMap';
+    $('load-online-map').hidden=true;
+  });
+  tiles.on('load',()=>{if (!loaded) stop();});
+  tiles.addTo(fieldMap);
+}
 function connectGoogle(key) {
-  if(!key) return;
+  if(!key || navigator.onLine === false) return tryStreetMap();
   let failed=false, overlay;
-  const fail=()=>{failed=true;clearTimeout(timeout);overlay?.setMap(null);googleFallback();};
+  const fail=()=>{
+    if (failed) return;
+    failed=true;
+    clearTimeout(timeout);
+    window.removeEventListener('offline',fail);
+    overlay?.setMap(null);
+    googleFallback();
+    tryStreetMap();
+  };
   const timeout=setTimeout(fail,15000);
+  window.addEventListener('offline',fail);
   window.gm_authFailure=fail;
   window.chirpInitMap=()=>{
     if(failed) return;
@@ -383,6 +431,7 @@ function connectGoogle(key) {
         target.style.cssText='';
         $('sample').hidden=true;
         $('map-status').textContent='Google Maps';
+        $('load-online-map').hidden=true;
         $('map-view').onchange=build;
         $('map-view-control').hidden=false;
         tiltToggle.onchange=updateTilt;
@@ -406,7 +455,13 @@ $('period').onchange=refresh;
 $('heat').onchange=render;
 refresh();
 setInterval(refresh,15000);
-if (location.hostname !== '10.42.0.1' && !new URLSearchParams(location.search).has('offline')) {
+const automaticMapURL = new URL(location.href);
+automaticMapURL.searchParams.delete('offline');
+$('load-online-map').href = automaticMapURL.href;
+if (new URLSearchParams(location.search).get('offline') !== '1') {
+  window.addEventListener('online',()=>{
+    if (!$('sample').hidden && !streetTiles) location.replace(automaticMapURL.href);
+  });
   const fonts = document.createElement('link');
   fonts.rel = 'stylesheet';
   fonts.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
