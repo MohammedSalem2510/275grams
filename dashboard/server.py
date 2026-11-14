@@ -21,6 +21,8 @@ from pydantic import BaseModel, Field
 
 from dashboard import photos
 
+
+#backend stuff
 HERE = Path(__file__).resolve().parent
 DB_PATH = HERE / "chirp.db"  # gitignored
 STATIONS = json.loads((HERE / "stations.json").read_text(encoding="utf-8"))
