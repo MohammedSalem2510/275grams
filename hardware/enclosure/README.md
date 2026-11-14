@@ -1,6 +1,6 @@
 # Chirp station enclosure
 
-Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **132 × 207 × 47 mm** (base + lid). It needs a bed at least 210 mm deep (Prusa MK4 250 × 210, Bambu X1/P1 256 × 256, Ender-3 220 × 220 all fit). Lay it lengthwise along the bed's longest side.
+Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **131 × 205 × 46 mm** (base + lid). It needs a bed at least 210 mm deep (Prusa MK4 250 × 210, Bambu X1/P1 256 × 256, Ender-3 220 × 220 all fit). Lay it lengthwise along the bed's longest side.
 
 | File | Part | Print orientation |
 |---|---|---|
@@ -9,7 +9,7 @@ Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Out
 | `shield.stl` | Louvred radiation shield for Modulino Thermo | As exported, roof on the bed |
 | `fit_test.stl` | **Print this first:** just the floor, UNO Q posts and rails, a few mm tall | As exported |
 
-**Suggested settings:** PLA or PETG (PETG for outdoor use), 0.2 mm layers, 3 walls, 20 % infill, **no supports**.
+**Suggested settings:** PLA or PETG (PETG for outdoor use), **0.28 mm layers, 4 walls, 15 % infill, no supports**. Walls and floor are 1.6 mm (exactly 4 perimeters at a 0.4 mm nozzle) and the lid is 2 mm, cut from 2.4 / 2.4 / 3 mm to fit the print lab's 4 h limit: base + lid + shield went from 255 to 177 cm³ of plastic (−30 %). The interior is unchanged, so everything still fits.
 
 ## Before printing
 - **Print `fit_test.stl` first.** It's the base's floor, posts and rails only. Lay the UNO Q on its posts, and the power bank and hub in their places. The model uses the standard UNO R3 hole pattern; if the holes don't line up, adjust `uno_holes` and export again.

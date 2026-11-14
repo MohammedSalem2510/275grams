@@ -12,10 +12,10 @@
 part = "all";          // "base" | "lid" | "shield" | "fit_test" | "all" (preview layout)
 
 /* [Print] */
-wall = 2.4;            // 6 perimeters at 0.4 mm nozzle
-floor_t = 2.4;
+wall = 1.6;            // 4 perimeters at 0.4 mm nozzle (was 2.4; cut for the 4 h print limit)
+floor_t = 1.6;
 clr = 1.0;             // clearance around every part; raise if the first print is tight
-lid_t = 3.0;
+lid_t = 2.0;           // 0.8 mm label engraving leaves 1.2 mm under the text
 lip = 4.0;             // depth of the lid's locating lip
 fit = 0.4;             // lid-lip to wall gap
 $fn = 40;
