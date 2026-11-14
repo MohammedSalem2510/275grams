@@ -16,15 +16,17 @@ bool has_thermo = false, has_buzzer = false, has_knob = false;
 
 const uint8_t COLS = 13, ROWS = 8, FRAME_SIZE = COLS * ROWS;  // brightness 0-7
 
-uint8_t detect_frame[FRAME_SIZE] = {  // a bird facing right: tail, body, wing (dimmer), eye, beak, legs
-  0, 0, 0, 0, 0, 0, 0, 0, 7, 7, 7, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 7, 7, 0, 7, 7, 7,
-  7, 0, 0, 0, 0, 0, 7, 7, 7, 7, 7, 0, 0,
-  7, 7, 0, 0, 0, 7, 7, 7, 7, 7, 7, 0, 0,
-  0, 7, 7, 7, 4, 4, 4, 4, 7, 7, 0, 0, 0,
-  0, 0, 7, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 7, 0, 7, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 7, 0, 7, 0, 0, 0, 0, 0,
+// Bird: idle frame of "Lil' Birb" by casual-garage-coder (CC0), https://casual-garage-coder.itch.io/lil-birb
+// 7 = body, 3 = wing, 4 = beak and feet, the unlit pixel in the head is the eye.
+uint8_t detect_frame[FRAME_SIZE] = {
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
+  0, 0, 0, 7, 0, 7, 7, 0, 7, 0, 0, 0, 0,
+  0, 0, 0, 7, 3, 3, 7, 7, 7, 4, 0, 0, 0,
+  0, 0, 0, 7, 7, 3, 7, 7, 7, 0, 0, 0, 0,
+  0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 };
 uint8_t idle_frame[FRAME_SIZE];  // blank, except the duty bar for BAR_MS after a Knob change
 
