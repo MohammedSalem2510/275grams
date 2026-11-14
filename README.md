@@ -64,3 +64,9 @@ USB mic goes into the **powered** USB-C hub (5 V 3 A). With the hub attached, Ap
 
 ### Laptop dashboard
 The integrated map is served at the backend root. From the repo root, install dependencies with `python -m pip install -r dashboard/requirements.txt` and run `python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000` (`0.0.0.0`, not `127.0.0.1`, or the UNO Q cannot upload). Open http://127.0.0.1:8000/. The station grid and all data controls work without a Google Maps key. To enable the Google basemap, copy `dashboard/static/maps-config.js` to `dashboard/static/maps-config.local.js` and paste a browser-restricted Maps JavaScript API key between the quotes in the local copy. Git ignores the local copy.
+
+## Credits and licence
+
+Species identification uses **BirdNET** (BirdNET-Analyzer, model `BirdNET_GLOBAL_6K_V2.4`) by the K. Lisa Yang Center for Conservation Bioacoustics at the Cornell Lab of Ornithology and Chemnitz University of Technology. The model is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/): non-commercial use only, with attribution, and adaptations shared alike. The model files aren't in this repository; they are copied onto the board by hand.
+
+Kahl, S., Wood, C. M., Eibl, M., & Klinck, H. (2021). BirdNET: A deep learning solution for avian diversity monitoring. *Ecological Informatics*, 61, 101236.
