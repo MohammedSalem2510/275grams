@@ -99,4 +99,6 @@ Species identification uses **BirdNET** (BirdNET-Analyzer, model `BirdNET_GLOBAL
 
 Kahl, S., Wood, C. M., Eibl, M., & Klinck, H. (2021). BirdNET: A deep learning solution for avian diversity monitoring. *Ecological Informatics*, 61, 101236.
 
+The LED-matrix bird is the idle frame of [Lil' Birb](https://casual-garage-coder.itch.io/lil-birb) by casual-garage-coder (CC0).
+
 Project brief: [Project_Chirp (Google Doc)](https://docs.google.com/document/d/1t4BtwcmLkrue99UclOt9XjlUw0V_pBga41g4tzjcazQ/edit?usp=sharing).
