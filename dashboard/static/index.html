@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="pro.css">
+<link rel="stylesheet" href="demo6.css">
 <body class="atlas-page">
 <header class="topbar">
   <a class="brand" href="./" aria-label="Chirp home"><span class="mark" aria-hidden="true"></span>chirp<small>Field Atlas</small></a>
@@ -42,11 +43,13 @@
         </div>
         <p id="station-info"></p>
       </div>
+      <canvas id="activity-heatmap" aria-hidden="true"></canvas>
       <div class="legend" aria-label="Map legend">
         <p class="eyebrow legend-title">Activity</p>
         <p class="legend-unit">Detection-minutes per listening hour</p>
         <div class="ramp" aria-hidden="true"></div>
         <div class="ticks"><span>0</span><span>5</span><span>10+</span></div>
+        <p class="heat-note">Smoothed station activity · surrounding areas unsampled. Radius is visual, not bird distance.</p>
         <ul class="keys">
           <li><b class="k-live"></b>Live</li>
           <li><b class="k-sim"></b>Simulated</li>
@@ -73,7 +76,7 @@
       <p class="eyebrow">Map settings</p>
       <label>Species <select id="species"></select></label>
       <label>Period <select id="period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="">All time</option></select></label>
-      <label class="toggle"><input id="heat" type="checkbox" checked> Rate rings</label>
+      <label class="toggle"><input id="heat" type="checkbox" checked> Activity heatmap</label>
       <label id="map-view-control" hidden>Map view <select id="map-view"><option value="roadmap">Street</option><option value="satellite">Satellite</option></select></label>
       <label id="map-tilt-control" class="toggle" hidden><input id="map-tilt" type="checkbox" checked> 3D tilt</label>
     </section>

@@ -1,0 +1,16 @@
+/* Local demo-v6 design experiment. */
+[data-theme=pro] { --paper:#f3f5f4; --rule:#e5eae7; }
+[data-theme=pro] .topbar { background:#fff; box-shadow:0 1px 12px #153d2410; }
+[data-theme=pro] .card { border-radius:14px; box-shadow:none; padding:20px; }
+[data-theme=pro] .panel { gap:16px; padding:20px; }
+[data-theme=pro] .atlas { border-radius:18px; }
+[data-theme=pro] .provenance { gap:24px; }
+[data-theme=pro] .provenance div:first-child { display:none; }
+[data-theme=pro] .legend { background:#fffffff2; border-radius:12px; box-shadow:0 4px 24px #17332115; }
+[data-theme=pro] .legend .ramp { background:linear-gradient(90deg,#2873eb,#1ac5ca,#f6d842,#f26728,#c32234); }
+.heat-note { max-width:260px; font-size:10px; line-height:1.5; color:#64746c; margin:8px 0 0; }
+#activity-heatmap { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
+#station-popup,#map-status,.map .legend { z-index:5; }
+.map .pin { z-index:3; }
+[data-theme=pro] .map-settings { background:#f7f9f7; }
+@media(max-width:700px) { [data-theme=pro] .provenance { display:none; } }

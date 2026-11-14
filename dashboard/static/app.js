@@ -2,6 +2,39 @@
 const $ = id => document.getElementById(id);
 let stations = [], rates = new Map(), selected, version = 0, detectionVersion = 0;
 let refreshGoogle;
+// Screen-space Gaussian density of measured station rates. The kernel is a
+// display radius, not an estimate of a bird's distance or the microphone's range.
+function drawHeatmap() {
+  const canvas=$('activity-heatmap'), container=canvas.parentElement;
+  const bounds=container.getBoundingClientRect(), scale=0.5;
+  canvas.width=Math.max(1,Math.round(bounds.width*scale));
+  canvas.height=Math.max(1,Math.round(bounds.height*scale));
+  const ctx=canvas.getContext('2d');
+  if(!$('heat').checked)return;
+  const field=new Float32Array(canvas.width*canvas.height), radius=70;
+  const host=$('google-map').hidden?$('sample-points'):$('google-map');
+  host.querySelectorAll('.pin').forEach((pin,i)=>{
+    const rate=rates.get(stations[i]?.station_id)?.rate_per_hour;
+    if(!(rate>0))return;
+    const rect=pin.getBoundingClientRect(),x=(rect.left+rect.width/2-bounds.left)*scale,y=(rect.top+rect.height/2-bounds.top)*scale;
+    const weight=Math.min(1,rate/10);
+    for(let py=Math.max(0,Math.floor(y-radius));py<Math.min(canvas.height,y+radius);py++){
+      for(let px=Math.max(0,Math.floor(x-radius));px<Math.min(canvas.width,x+radius);px++){
+        const d=((px-x)**2+(py-y)**2)/(radius*radius);
+        if(d<1)field[py*canvas.width+px]+=weight*Math.exp(-4*d)*(1-d);
+      }
+    }
+  });
+  const image=ctx.createImageData(canvas.width,canvas.height);
+  const colours=[[40,115,235],[26,197,202],[246,216,66],[242,103,40],[195,34,52]];
+  field.forEach((value,i)=>{
+    if(value<0.005)return;
+    const t=Math.min(1,value),position=t*4,lo=Math.min(3,Math.floor(position)),mix=position-lo;
+    for(let c=0;c<3;c++)image.data[i*4+c]=colours[lo][c]*(1-mix)+colours[lo+1][c]*mix;
+    image.data[i*4+3]=Math.round(Math.min(0.78,t*2)*255);
+  });
+  ctx.putImageData(image,0,0);
+}
 const fmt = n => new Intl.NumberFormat('en-GB', {maximumFractionDigits:1}).format(n);
 const common = label => label.includes('_') ? label.slice(label.indexOf('_')+1) : label;
 function ago(iso) {
@@ -95,7 +128,7 @@ function makePoint(i) {
   const glow=document.createElement('span');
   glow.className='glow';
   glow.style.setProperty('--point',colour);
-  glow.hidden=!$('heat').checked||!(value>0);
+  glow.hidden=true;
   return [glow,pin];
 }
 // Station popup: a card on the map next to the selected pin (bottom sheet on narrow screens).
@@ -137,6 +170,7 @@ function closePopup() {
 $('popup-close').onclick=closePopup;
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePopup(); });
 window.addEventListener('resize',placePopup);
+window.addEventListener('resize',()=>requestAnimationFrame(drawHeatmap));
 function render() {
   const focusPin=document.activeElement?.classList.contains('pin');
   const station=stations.find(item=>item.station_id===selected);
@@ -168,6 +202,7 @@ function render() {
   document.querySelectorAll('.station-ref').forEach(el=>el.textContent=station?' · '+station.name:'');
   refreshGoogle?.();
   placePopup();
+  requestAnimationFrame(drawHeatmap);
   if(focusPin) document.querySelector('#'+($('google-map').hidden?'sample':'google-map')+' .pin[aria-pressed=true]')?.focus({preventScroll:true});
 }
 async function refresh() {
@@ -242,6 +277,7 @@ function connectGoogle(key) {
             }
           });
           placePopup();  // follow the pin when the Google map pans or zooms
+          requestAnimationFrame(drawHeatmap);
         }
         onRemove(){this.root?.remove();refreshGoogle=null;}
       }
@@ -292,6 +328,7 @@ function connectGoogle(key) {
         $('map-view-control').hidden=false;
         tiltToggle.onchange=updateTilt;
         updateTilt();
+        requestAnimationFrame(drawHeatmap);
       });
     } catch {fail();}
   };
