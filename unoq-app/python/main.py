@@ -2,12 +2,14 @@
 import json
 import os
 import queue
+import shutil
 import subprocess
 import threading
 import time
 import urllib.error
 import urllib.request
 import uuid
+import wave
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -53,14 +55,97 @@ def accept(p: dict) -> bool:
 
 MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "20%")  # camera default 100% (+16 dB) clips on room noise alone
 
+# ---------- Field recording (off unless the flag file exists) ----------
+# Turn on for a field session:   touch ~/repo/unoq-app/python/record_audio   then restart the app
+APP_DIR = Path(__file__).resolve().parent.parent
+RECORD_FLAG = Path(__file__).with_name("record_audio")  # gitignored
+RECORDINGS = APP_DIR / "recordings"                     # gitignored; raw audio never goes in git
+MIN_FREE_BYTES = 1_000_000_000                          # stop recording below 1 GB free
+SPEECH_SCORE = 0.2  # privacy: purge a clip if speech is even weakly the top label
+
+
+class MinuteRecorder:
+    """Writes the analysed audio into one-minute WAV files. A file in which speech was the top
+    label in any window is deleted when it closes, so speech is never stored."""
+
+    def __init__(self, folder: Path):
+        self.folder, self.wav, self.name, self.opened, self.speech = folder, None, None, 0.0, False
+        folder.mkdir(parents=True, exist_ok=True)
+
+    def write(self, raw: bytes, start: datetime):
+        if self.wav is None or time.monotonic() - self.opened >= 60:
+            self._rotate(start)
+        if self.wav is None:
+            return None, None
+        offset = self.wav.getnframes() / 48000
+        self.wav.writeframes(raw)
+        return self.name, offset
+
+    def mark_speech(self):
+        self.speech = True
+
+    def _rotate(self, start: datetime):
+        self.close()
+        if shutil.disk_usage(self.folder).free < MIN_FREE_BYTES:
+            print("[chirp] disk nearly full, recording paused", flush=True)
+            return
+        self.name = f"{STATION_ID}_{start.strftime('%Y%m%dT%H%M%SZ')}.wav"
+        self.wav = wave.open(str(self.folder / self.name), "wb")
+        self.wav.setnchannels(1)
+        self.wav.setsampwidth(2)
+        self.wav.setframerate(48000)
+        self.opened = time.monotonic()
+
+    def close(self):
+        if self.wav is None:
+            return
+        self.wav.close()
+        if self.speech:
+            (self.folder / self.name).unlink(missing_ok=True)
+            print(f"[chirp] speech heard, deleted {self.name}", flush=True)
+        self.wav, self.speech = None, False
+
+
+# ---------- Context from the MCU (Modulino Thermo + Knob), polled, never blocking ----------
+NO_SENSOR = -999.0
+mcu = {"temperature_c": None, "duty": 1.0, "polled": 0.0}
+
+
+def poll_mcu():
+    if time.monotonic() - mcu["polled"] < 10:
+        return
+    mcu["polled"] = time.monotonic()
+    try:
+        t = float(Bridge.call("get_temperature"))
+        mcu["temperature_c"] = None if t <= NO_SENSOR + 1 else round(t, 1)
+        mcu["duty"] = max(0.05, min(1.0, float(Bridge.call("get_duty")) / 100))
+    except Exception as e:  # an older sketch or a missing Modulino must not stop listening
+        print(f"[chirp] MCU context unavailable ({e})", flush=True)
+
+
+def skip_window(state={"slot": 0}) -> bool:
+    """Duty cycle: analyse the first duty x 20 windows of every 20 (one minute), skip the rest."""
+    poll_mcu()
+    slot = state["slot"]
+    state["slot"] = (slot + 1) % 20
+    return slot >= round(mcu["duty"] * 20)
+
 
 def listen():
     # Boot default overloads the camera mic; set gain every start (no sudo needed).
     subprocess.run(["amixer", "-q", "-c", "Camera", "sset", "Mic", MIC_GAIN], check=False)
     cmd =["arecord", "-q", "-D", MIC, "-t", "raw", "-f", "S16_LE", "-c", "1", "-r", "48000"]
+    recorder = MinuteRecorder(RECORDINGS) if RECORD_FLAG.exists() else None
+    print(f"[chirp] field recording {'ON -> ' + str(RECORDINGS) if recorder else 'off'}", flush=True)
+    last_raw = [b""]
+
+    def read_window():
+        last_raw[0] = mic.stdout.read(WINDOW_BYTES)
+        return last_raw[0]
+
     with subprocess.Popen(cmd, stdout=subprocess.PIPE) as mic:
         analysed = 0
-        for p in predict(lambda: mic.stdout.read(WINDOW_BYTES), MODEL_DIR, None, THRESHOLD):
+        for p in predict(read_window, MODEL_DIR, None, THRESHOLD, skip=skip_window):
             analysed += 1  # every analysed window counts as 3 s of listening, detection or not
             ok = accept(p)
             if ok:
@@ -68,16 +153,27 @@ def listen():
                 Bridge.call("bird_detected")
             elif analysed % 20 == 0:
                 print(f"[chirp] {analysed * 3} s analysed, last inference {p['inference_s']} s, "
+                      f"duty {mcu['duty']:.0%}, temp {mcu['temperature_c']}, "
                       f"{outbox.qsize()} awaiting upload", flush=True)
             # Window ended just before inference started; approximate its start from that.
             start = datetime.fromtimestamp(time.time() - p["inference_s"] - 3, timezone.utc)
+            clip, offset = (None, None)
+            if recorder:
+                clip, offset = recorder.write(last_raw[0], start)  # write first: may open a new file
+                if "Human" in p["top"] and p["score"] >= SPEECH_SCORE:
+                    recorder.mark_speech()  # ...so the file holding this window is the one purged
+                    clip, offset = None, None
             window = {"window_id": uuid.uuid4().hex, "station_id": STATION_ID,
                       "start": start.isoformat(), "duration_s": 3.0, "model_version": MODEL_VERSION,
-                      "detections": [{"species": p["species"], "score": p["score"]}] if ok else []}
+                      "detections": [{"species": p["species"], "score": p["score"]}] if ok else [],
+                      "temperature_c": mcu["temperature_c"], "duty": mcu["duty"],
+                      "clip": clip, "clip_offset_s": offset}
             try:
                 outbox.put_nowait(window)
             except queue.Full:
                 print("[chirp] outbox full, window not uploaded", flush=True)
+        if recorder:
+            recorder.close()
         print(f"[chirp] mic stopped (arecord exit {mic.poll()})", flush=True)
 
 

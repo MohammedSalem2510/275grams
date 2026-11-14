@@ -34,3 +34,7 @@ dashboard/chirp.db
 # Per-board backend address (see main.py)
 unoq-app/python/server_url.txt
 /dashboard/static/maps-config.local.js
+
+# Field recordings stay on the board
+unoq-app/recordings/
+unoq-app/python/record_audio

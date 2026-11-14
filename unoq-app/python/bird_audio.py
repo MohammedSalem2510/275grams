@@ -15,8 +15,9 @@ from ai_edge_litert.interpreter import Interpreter
 WINDOW_BYTES = 288000  # 3 s of 48 kHz mono S16_LE
 
 
-def predict(read_window, model_dir, windows=None, threshold=0.5):
-    """Yield one dict per 3 s window; windows=None runs until read_window runs dry."""
+def predict(read_window, model_dir, windows=None, threshold=0.5, skip=None):
+    """Yield one dict per analysed 3 s window; windows=None runs until read_window runs dry.
+    skip() -> True reads and discards the next window without inference (duty cycling)."""
     prefix = "BirdNET_GLOBAL_6K_V2.4"
     labels = (model_dir / f"{prefix}_Labels.txt").read_text().splitlines()
     model = Interpreter(str(model_dir / f"{prefix}_Model_FP32.tflite"), num_threads=2)
@@ -28,6 +29,9 @@ def predict(read_window, model_dir, windows=None, threshold=0.5):
         raw = read_window()
         if len(raw) != WINDOW_BYTES:
             break
+        if skip and skip():
+            index += 1
+            continue
         started = time.monotonic()
         samples = np.frombuffer(raw, dtype="<i2").astype(np.float32) / 32768
         model.set_tensor(input_id, samples.reshape(1, -1))
@@ -35,7 +39,7 @@ def predict(read_window, model_dir, windows=None, threshold=0.5):
         logits = model.get_tensor(output_id)[0]
         scores = 1 / (1 + np.exp(-np.clip(logits, -80, 80)))
         best = int(np.argmax(scores))
-        yield dict(start_s=3 * index, species=labels[best] if scores[best] >= threshold else None,
+        yield dict(start_s=3 * index, top=labels[best], species=labels[best] if scores[best] >= threshold else None,
                    score=round(float(scores[best]), 4), inference_s=round(time.monotonic() - started, 3))
         index += 1
 

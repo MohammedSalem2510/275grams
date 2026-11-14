@@ -78,6 +78,13 @@
           + `${(a.recent_listening_s / 3600).toFixed(0)} h vs ${(a.baseline_listening_s / 3600).toFixed(0)} h listening · `
           + `p = ${a.p_value.toExponential(1)}`;
         box.append(title, detail);
+        if (a.recent_temp_c !== null && a.baseline_temp_c !== null) {
+          const diff = a.recent_temp_c - a.baseline_temp_c;
+          const ctx = document.createElement('p');
+          ctx.textContent = `Context: ${a.recent_temp_c.toFixed(1)} °C recently vs ${a.baseline_temp_c.toFixed(1)} °C baseline`
+            + (Math.abs(diff) >= 3 ? ` · ${Math.abs(diff).toFixed(1)} °C ${diff < 0 ? 'colder' : 'warmer'}: weather may explain part of this change.` : '.');
+          box.append(ctx);
+        }
         try {
           const q = new URLSearchParams({station_id: a.station_id, species: a.species, weeks: 12});
           box.append(...chart(await get('/api/trends?' + q)));

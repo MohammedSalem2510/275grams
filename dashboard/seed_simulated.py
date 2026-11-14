@@ -11,11 +11,12 @@ Planted scenario for the early-warning demo: reed bunting at sim-3 (Laajalahti r
 falls to ~45 % of its usual activity over the last 2 weeks. Nothing else changes
 beyond week-to-week noise, so it should be the only alert.
 """
+import math
 import random
 import sqlite3
 from datetime import datetime, timedelta, timezone
 
-from dashboard.server import DB_PATH, SCHEMA, STATIONS, utc
+from dashboard.server import DB_PATH, INSERT_WINDOW, NEW_COLUMNS, SCHEMA, STATIONS, utc
 
 MODEL = "SIMULATED"
 DAYS = 84
@@ -51,6 +52,12 @@ SITES = {
 }
 
 
+def temperature(days_ago: int, hour: float, day_noise: float) -> float:
+    """Espoo autumn: daily mean falls from ~15 C (late Aug) to ~2 C (mid Nov), +-2 C daily cycle."""
+    mean = 2 + 13 * days_ago / DAYS
+    return round(mean + 2 * math.sin((hour - 7) / 24 * 2 * math.pi) + day_noise, 1)
+
+
 def bout_chance(base: float, peak: int, hour: float) -> float:
     """Song is likeliest near the peak hour and fades over ~2.5 h either side."""
     return base * max(0.15, 1 - abs(hour - peak) / 2.5)
@@ -65,13 +72,15 @@ def generate(station_id: str, site: dict, rng: random.Random, now: datetime):
         if day in site["offline_days"]:
             continue  # no listening at all: must show as missing effort, not as zero birds
         date = today - timedelta(days=day)
+        day_noise = rng.uniform(-2.5, 2.5)
         for start_h, end_h in site["sessions"]:
             t, end = date + timedelta(hours=start_h), date + timedelta(hours=end_h)
             singing: dict[str, int] = {}  # species -> minutes left in the current song bout
             while t < end:
                 wid = f"sim-{station_id}-{int(t.timestamp())}"
-                windows.append((wid, station_id, utc(t), WINDOW_S, MODEL, utc(now)))
                 hour = t.hour + t.minute / 60
+                windows.append((wid, station_id, utc(t), WINDOW_S, MODEL, utc(now),
+                                temperature(day, hour, day_noise), 1.0, None, None))
                 for sp, (base, peak) in site["species"].items():
                     mood = weekly_mood.setdefault((sp, day // 7), rng.uniform(0.85, 1.15))
                     factor = decline_factor if sp == decline_sp and day <= decline_days else 1.0
@@ -94,11 +103,15 @@ def main():
     now = datetime.now(timezone.utc)
     with sqlite3.connect(DB_PATH) as c:
         c.executescript(SCHEMA)
+        have = {row[1] for row in c.execute("PRAGMA table_info(windows)")}
+        for name, kind in NEW_COLUMNS.items():
+            if name not in have:
+                c.execute(f"ALTER TABLE windows ADD COLUMN {name} {kind}")
         c.execute("DELETE FROM detections WHERE window_id IN (SELECT window_id FROM windows WHERE model_version = ?)", (MODEL,))
         c.execute("DELETE FROM windows WHERE model_version = ?", (MODEL,))
         for sid, site in SITES.items():
             windows, detections = generate(sid, site, rng, now)
-            c.executemany("INSERT INTO windows VALUES (?,?,?,?,?,?)", windows)
+            c.executemany(INSERT_WINDOW, windows)
             c.executemany("INSERT INTO detections VALUES (?,?,?)", detections)
             print(f"{sid}: {len(windows) * WINDOW_S / 3600:.0f} h listening, {len(detections)} detection-minutes")
 

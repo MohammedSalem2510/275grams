@@ -3,13 +3,15 @@
 Run from the repo root:  python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
 Contract: protocol/http.md
 """
+import csv
+import io
 import json
 import math
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -28,7 +30,11 @@ CREATE TABLE IF NOT EXISTS windows (          -- listening effort: one row per a
   start_utc TEXT NOT NULL,
   duration_s REAL NOT NULL,
   model_version TEXT NOT NULL,
-  received_utc TEXT NOT NULL
+  received_utc TEXT NOT NULL,
+  temperature_c REAL,                         -- optional context, see protocol/http.md
+  duty REAL,
+  clip TEXT,
+  clip_offset_s REAL
 );
 CREATE TABLE IF NOT EXISTS detections (       -- accepted predictions within a window
   window_id TEXT NOT NULL REFERENCES windows(window_id),
@@ -47,8 +53,19 @@ def db() -> sqlite3.Connection:
     return conn
 
 
+# Columns added after the first schema; older chirp.db files get them on start.
+NEW_COLUMNS = {"temperature_c": "REAL", "duty": "REAL", "clip": "TEXT", "clip_offset_s": "REAL"}
+
 with db() as c:
     c.executescript(SCHEMA)
+    have = {row[1] for row in c.execute("PRAGMA table_info(windows)")}
+    for name, kind in NEW_COLUMNS.items():
+        if name not in have:
+            c.execute(f"ALTER TABLE windows ADD COLUMN {name} {kind}")
+
+WINDOW_COLUMNS = ("window_id, station_id, start_utc, duration_s, model_version, received_utc, "
+                  "temperature_c, duty, clip, clip_offset_s")
+INSERT_WINDOW = f"INSERT OR IGNORE INTO windows ({WINDOW_COLUMNS}) VALUES (?,?,?,?,?,?,?,?,?,?)"
 
 
 def utc(dt: datetime) -> str:
@@ -88,6 +105,10 @@ class Window(BaseModel):
     duration_s: float = Field(gt=0, le=60)
     model_version: str = Field(max_length=100)
     detections: list[Detection] = []
+    temperature_c: float | None = Field(default=None, ge=-60, le=60)
+    duty: float | None = Field(default=None, gt=0, le=1)
+    clip: str | None = Field(default=None, max_length=120, pattern=r"^[A-Za-z0-9_.-]+$")
+    clip_offset_s: float | None = Field(default=None, ge=0)
 
 
 app = FastAPI(title="Chirp")
@@ -104,8 +125,9 @@ def ingest(windows: list[Window]):
     inserted = 0
     with db() as c:
         for w in windows:
-            cur = c.execute("INSERT OR IGNORE INTO windows VALUES (?,?,?,?,?,?)",
-                            (w.window_id, w.station_id, utc(w.start), w.duration_s, w.model_version, now))
+            cur = c.execute(INSERT_WINDOW, (w.window_id, w.station_id, utc(w.start), w.duration_s,
+                                            w.model_version, now, w.temperature_c, w.duty, w.clip,
+                                            w.clip_offset_s))
             if cur.rowcount:  # new window; a retried one is ignored with its detections
                 inserted += 1
                 c.executemany("INSERT OR IGNORE INTO detections VALUES (?,?,?)",
@@ -205,11 +227,16 @@ def weekly(c: sqlite3.Connection, weeks: int, now: datetime, station_id: str | N
     sp_sql, sp_args = (" AND d.species = ?", [species]) if species else ("", [])
     bin_of = lambda ts: int((now - datetime.fromisoformat(ts)).total_seconds() // WEEK.total_seconds())
     listening: dict = {}
-    for sid, ts, dur in c.execute("SELECT w.station_id, w.start_utc, w.duration_s FROM windows w "
-                                  f"WHERE w.start_utc >= ?{st_sql}", [lo, *st_args]):
+    temps: dict = {}  # (station, bin) -> [sum of temp x seconds, seconds with a temperature]
+    for sid, ts, dur, temp in c.execute("SELECT w.station_id, w.start_utc, w.duration_s, w.temperature_c "
+                                        f"FROM windows w WHERE w.start_utc >= ?{st_sql}", [lo, *st_args]):
         b = bin_of(ts)
         if 0 <= b < weeks:
             listening[(sid, b)] = listening.get((sid, b), 0.0) + dur
+            if temp is not None:
+                acc = temps.setdefault((sid, b), [0.0, 0.0])
+                acc[0] += temp * dur
+                acc[1] += dur
     minutes: dict = {}
     for sid, sp, minute in c.execute("SELECT DISTINCT w.station_id, d.species, substr(w.start_utc, 1, 16) "
                                      "FROM detections d JOIN windows w USING (window_id) "
@@ -217,7 +244,13 @@ def weekly(c: sqlite3.Connection, weeks: int, now: datetime, station_id: str | N
         b = bin_of(minute + ":59.999999+00:00")  # bin by the minute's end, matching its windows
         if 0 <= b < weeks:
             minutes[(sid, sp, b)] = minutes.get((sid, sp, b), 0) + 1
-    return listening, minutes
+    return listening, minutes, temps
+
+
+def mean_temp(temps: dict, station_id: str, bins) -> float | None:
+    total = sum(temps.get((station_id, b), (0.0, 0.0))[0] for b in bins)
+    secs = sum(temps.get((station_id, b), (0.0, 0.0))[1] for b in bins)
+    return round(total / secs, 1) if secs else None
 
 
 @app.get("/api/trends")
@@ -225,7 +258,7 @@ def trends(station_id: str, species: str | None = None, weeks: int = 12):
     weeks = max(1, min(weeks, 52))
     now = datetime.now(timezone.utc)
     with db() as c:
-        listening, minutes = weekly(c, weeks, now, station_id, species)
+        listening, minutes, temps = weekly(c, weeks, now, station_id, species)
     out = []
     for b in range(weeks - 1, -1, -1):  # oldest first
         secs = listening.get((station_id, b), 0.0)
@@ -233,7 +266,8 @@ def trends(station_id: str, species: str | None = None, weeks: int = 12):
         rate = rate_per_hour(n, secs)
         out.append({"week_start": utc(now - (b + 1) * WEEK), "week_end": utc(now - b * WEEK),
                     "detections": n, "listening_s": secs, "rate_per_hour": rate,
-                    "low_effort": rate is not None and secs < LOW_EFFORT_S})
+                    "low_effort": rate is not None and secs < LOW_EFFORT_S,
+                    "temp_c": mean_temp(temps, station_id, [b])})
     return out
 
 
@@ -264,7 +298,7 @@ def is_decline(recent_n: int, recent_s: float, base_n: int, base_s: float) -> di
 def alerts(species: str | None = None):
     weeks = RECENT_WEEKS + BASELINE_WEEKS
     with db() as c:
-        listening, minutes = weekly(c, weeks, datetime.now(timezone.utc), species=species)
+        listening, minutes, temps = weekly(c, weeks, datetime.now(timezone.utc), species=species)
     out = []
     for sid, sp in sorted({(sid, sp) for sid, sp, _b in minutes}):
         recent = range(RECENT_WEEKS)
@@ -274,8 +308,72 @@ def alerts(species: str | None = None):
                           sum(minutes.get((sid, sp, b), 0) for b in base),
                           sum(listening.get((sid, b), 0.0) for b in base))
         if flag:
-            out.append({"station_id": sid, "species": sp, **flag})
+            out.append({"station_id": sid, "species": sp, **flag,
+                        "recent_temp_c": mean_temp(temps, sid, recent),
+                        "baseline_temp_c": mean_temp(temps, sid, base)})
     return sorted(out, key=lambda a: -a["drop"])
+
+
+# ---------- Darwin Core export (GBIF / Laji.fi-ready occurrence CSV) ----------
+DWC_FIELDS = [
+    "occurrenceID", "basisOfRecord", "occurrenceStatus", "eventDate", "samplingProtocol",
+    "samplingEffort", "scientificName", "vernacularName", "taxonRank", "kingdom",
+    "identifiedBy", "identificationVerificationStatus", "identificationRemarks",
+    "decimalLatitude", "decimalLongitude", "geodeticDatum", "coordinateUncertaintyInMeters",
+    "countryCode", "locality", "datasetName", "dynamicProperties",
+]
+DETECTION_RADIUS_M = 100  # a microphone hears birds around it, not at its exact point
+
+
+@app.get("/api/export/darwin-core.csv")
+def export_darwin_core(species: str | None = None, start: datetime | None = None,
+                       end: datetime | None = None, include_simulated: bool = False):
+    where, args = window_filter(start, end)
+    if species:
+        where += " AND d.species = ?"
+        args.append(species)
+    by_id = {s["station_id"]: s for s in STATIONS}
+    with db() as c:
+        rows = c.execute("SELECT w.window_id, w.station_id, w.start_utc, w.duration_s, w.model_version, "
+                         "w.temperature_c, d.species, d.score FROM detections d JOIN windows w USING (window_id) "
+                         f"WHERE 1=1{where} ORDER BY w.start_utc", args).fetchall()
+    buf = io.StringIO()
+    out = csv.DictWriter(buf, DWC_FIELDS, lineterminator="\n")
+    out.writeheader()
+    for r in rows:
+        st = by_id.get(r["station_id"])
+        if st is None or (st["simulated"] and not include_simulated):
+            continue
+        sci, _, common = r["species"].partition("_")
+        begin = datetime.fromisoformat(r["start_utc"])
+        out.writerow({
+            "occurrenceID": f"chirp:{r['window_id']}:{sci.replace(' ', '_')}",
+            "basisOfRecord": "MachineObservation",
+            "occurrenceStatus": "present",
+            "eventDate": f"{begin.strftime('%Y-%m-%dT%H:%M:%SZ')}/"
+                         f"{(begin + timedelta(seconds=r['duration_s'])).strftime('%Y-%m-%dT%H:%M:%SZ')}",
+            "samplingProtocol": f"passive acoustic monitoring; {r['model_version']} on-device, score >= 0.5",
+            "samplingEffort": f"{r['duration_s']:g} s acoustic window",
+            "scientificName": sci,
+            "vernacularName": common,
+            "taxonRank": "species",
+            "kingdom": "Animalia",
+            "identifiedBy": f"{r['model_version']} (automated)",
+            "identificationVerificationStatus": "unverified",
+            "identificationRemarks": f"model score {r['score']:.3f} (not a probability of correctness)",
+            "decimalLatitude": st["lat"],
+            "decimalLongitude": st["lon"],
+            "geodeticDatum": "WGS84",
+            "coordinateUncertaintyInMeters": DETECTION_RADIUS_M,
+            "countryCode": "FI",
+            "locality": st["name"],
+            "datasetName": "Chirp acoustic monitoring" + (" (SIMULATED)" if st["simulated"] else ""),
+            "dynamicProperties": json.dumps({"station_id": r["station_id"], "score": r["score"],
+                                             "temperature_c": r["temperature_c"],
+                                             "simulated": st["simulated"]}),
+        })
+    return Response(buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="chirp-darwin-core.csv"'})
 
 
 # The dashboard (Seun's map) lives in dashboard/static/ and is served at /.

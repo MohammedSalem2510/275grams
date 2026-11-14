@@ -1,7 +1,6 @@
 # Bridge + LED matrix ship with the platform, but Arduino_RPClite (used by
 # Arduino_RouterBridge) depends on MsgPack; profiles don't resolve dependencies,
-# so the whole chain is listed explicitly.
-# Adding Modulino: pick Arduino_Modulino in App Lab's library manager and let it rewrite this.
+# so every chain is listed explicitly. Versions are the newest in the board's index.
 profiles:
   default:
     platforms:
@@ -11,4 +10,11 @@ profiles:
       - dependency: DebugLog (0.8.4)
       - dependency: ArxContainer (0.7.0)
       - dependency: ArxTypeTraits (0.3.2)
+      - Arduino_Modulino (0.6.1)
+      - dependency: ArduinoGraphics (1.1.4)
+      - dependency: Arduino_HS300x (1.0.0)
+      - dependency: Arduino_LPS22HB (1.0.2)
+      - dependency: Arduino_LSM6DSOX (1.1.2)
+      - dependency: STM32duino VL53L4CD (1.0.5)
+      - dependency: STM32duino VL53L4ED (1.0.1)
 default_profile: default
