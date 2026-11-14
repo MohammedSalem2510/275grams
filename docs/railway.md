@@ -1,9 +1,37 @@
-# Railway preview
+# Hosting the dashboard on Railway
 
-1. In Railway, create a service from the `MohammedSalem2510/275grams` GitHub repository and select the `codex/railway-hosting` source branch. Use the repository root so Railway builds the included Dockerfile.
-2. Attach a persistent volume at `/data` for SQLite and cached bird photos. Use one service replica. The initial database is empty and includes the station registry.
-3. Generate a public domain under the service's networking settings. Open the domain on a phone using mobile data and check the map and statistics. The preview can be viewed before a station is connected.
-4. When ready to connect the station, generate a random secret (for example with `python -c "import secrets; print(secrets.token_urlsafe(32))"`) and set it as the service variable `CHIRP_STATION_TOKEN`. Apply the change. The public service accepts observation uploads with that token and serves no evidence audio.
-5. For a live test, run the station code from this branch on the UNO Q. Save the same secret in `~/repo/unoq-app/python/station_token.txt` (file mode 600) and the public HTTPS URL without a trailing slash in `~/repo/unoq-app/python/server_url.txt`. Save the previous URL first. Restart Chirp Station with internet access and check that the live station's last reading advances on the public site.
+The public site is the same dashboard in hosted mode (`CHIRP_HOSTED=1`, set by the `Dockerfile`). It needs a station token for uploads, and it stores and plays evidence clips (`protocol/http.md`). Ryan designed it; this guide builds from `main`.
 
-The station sends new observations to one destination. To resume updating the local dashboard, restore its URL, remove the station token file and restart Chirp Station. The hosted preview displays the history already uploaded.
+## 1. Create the service (a Railway account holder does this)
+
+1. In Railway, create a project from the GitHub repository `MohammedSalem2510/275grams`, branch `main`. Railway finds the root `Dockerfile`.
+2. Add a **volume** mounted at `/data`. It holds the SQLite database, evidence clips and cached bird photos, and it survives redeploys. Keep one replica.
+3. Under the service's variables, set `CHIRP_STATION_TOKEN` to a long random secret. To generate one: `python -c "import secrets; print(secrets.token_urlsafe(32))"`. Don't commit it anywhere.
+4. Under networking, **generate a public domain**. Each start re-seeds the labelled simulated stations, so the site has demo data from the first visit.
+
+## 2. Copy today's real station history (from the laptop that has it)
+
+From the repo root, in PowerShell:
+
+```
+$env:CHIRP_STATION_TOKEN = "<the token>"
+python -m dashboard.backfill_hosted https://<your-app>.up.railway.app
+```
+
+This copies every real window, detection and clip. It's safe to re-run.
+
+## 3. Point the station at the public site (live updates)
+
+On the board, over SSH. The board needs internet, which Junction Wi-Fi provides.
+
+```
+cd ~/repo; git pull
+cp unoq-app/python/server_url.txt unoq-app/python/server_url.laptop.txt   # keep the laptop address
+echo https://<your-app>.up.railway.app > unoq-app/python/server_url.txt
+echo '<the token>' > unoq-app/python/station_token.txt; chmod 600 unoq-app/python/station_token.txt
+arduino-app-cli app stop user:chirp-station; arduino-app-cli app start user:chirp-station
+```
+
+Check: chirp-1 shows **online** on the public site, and new detections appear with a play button. A log line `upload refused (401)` means the token on the board doesn't match Railway's.
+
+The station sends to one destination. To go back to the laptop, restore `server_url.laptop.txt` as `server_url.txt`, delete `station_token.txt`, and restart Chirp Station. Uploads to an `http://` address never include the token.
