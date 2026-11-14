@@ -29,5 +29,17 @@ Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-o
 | `GET /api/species?start=&end=` | `[{species, detections}]` for the search box |
 | `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score}]` |
 | `GET /api/rates?species=&start=&end=` | One row per station: `{station_id, simulated, detections, listening_s, rate_per_hour, low_effort}`. `rate_per_hour` is **`null` under 60 s of listening (no data)**, which is never shown as zero. `low_effort` is `true` when there's a rate but under 15 min of listening behind it. The map must flag those pins (e.g. hollow or dashed) and show the listening time. |
+| `GET /api/trends?station_id=&species=&weeks=12` | Oldest first, one row per 7-day bin ending now: `{week_start, week_end, detections, listening_s, rate_per_hour, low_effort}` |
+| `GET /api/alerts?species=` | Early warnings, worst first: `{station_id, species, drop, recent_rate, baseline_rate, recent_listening_s, baseline_listening_s, p_value}` |
+
+**Detections are counted as detection-minutes:** the number of distinct minutes in which a species was detected (all species: distinct species × minute pairs). One bird singing for a minute counts once, not once per 3 s window. `/api/detections` still lists the individual windows.
+
+**Early-warning rule** (`/api/alerts`): compare the last 2 weeks with the 6 weeks before them at the same station. Flag a decline only if all of these hold:
+- the rate dropped by **≥ 30 %**
+- there's **≥ 5 h** of listening in the recent period and **≥ 15 h** in the baseline
+- the baseline has **≥ 30** detection-minutes
+- a Poisson test gives **p < 0.01**
+
+Missing listening never counts as a decline. These are *changes in detected activity worth investigating*, not confirmed population loss. A real deployment should compare against the same season in earlier years, so migration isn't mistaken for decline.
 
 Species values are full BirdNET labels (`Scientific name_Common Name`). Split on the first `_` for display.
