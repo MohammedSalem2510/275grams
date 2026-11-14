@@ -194,4 +194,9 @@ try {
 } catch {}
 refresh();
 setInterval(refresh,15000);
-connectGoogle((window.CHIRP_MAPS_KEY||'').trim());
+const localMapsConfig = document.createElement('script');
+localMapsConfig.src = 'maps-config.local.js';
+localMapsConfig.onload = localMapsConfig.onerror = () => {
+  connectGoogle((window.CHIRP_MAPS_KEY || '').trim());
+};
+document.head.appendChild(localMapsConfig);

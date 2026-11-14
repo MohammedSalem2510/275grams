@@ -33,3 +33,4 @@ dashboard/chirp.db
 
 # Per-board backend address (see main.py)
 unoq-app/python/server_url.txt
+/dashboard/static/maps-config.local.js
