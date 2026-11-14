@@ -1,4 +1,6 @@
-# Chirp bird activity map
+# Chirp bird activity map (superseded prototype)
+
+> **Superseded.** This is the early standalone prototype, kept for reference. The live dashboard is `dashboard/static/` (served by `dashboard/server.py`) and uses one style, `pro.css` ("field instrument"). Don't style or extend this folder.
 
 Open `index.html` to explore the sample map. Choose a bird and period, toggle the heatmap, and select a numbered station. The four themes work in both map modes.
 

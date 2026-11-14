@@ -142,10 +142,7 @@ async function refresh() {
 }
 
 async function init() {
-  try {
-    const theme = localStorage.getItem('chirp-theme');
-    if (['forest', 'paper', 'ocean', 'night'].includes(theme)) document.documentElement.dataset.theme = theme;
-  } catch {}
+  // One theme (pro.css) across the dashboard; saved per-browser themes are retired.
   try {
     const [registry, species] = await Promise.all([get('stations'), get('species')]);
     stations = registry;

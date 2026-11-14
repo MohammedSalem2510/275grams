@@ -26,16 +26,20 @@
   color-scheme: light;
 }
 
-html, body { height: 100%; }
-body {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-  height: 100vh;
-  overflow: hidden;
+[data-theme=pro] body {
+  margin: 0;
   background: var(--paper);
   color: var(--ink);
   font: 14px/1.5 var(--sans);
   font-feature-settings: "tnum" 1;
+}
+/* Map page: one screen, no page scroll; the side panel scrolls instead */
+html:has(body.atlas-page), body.atlas-page { height: 100%; }
+body.atlas-page {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* ---------- Top bar: identity + provenance ---------- */
@@ -72,6 +76,17 @@ body {
   padding-left: 10px;
   border-left: 1px solid var(--rule-strong);
 }
+/* Page navigation (Map | Statistics) */
+.pages { display: flex; gap: 4px; }
+.pages a {
+  padding: 6px 10px;
+  border-radius: 4px;
+  font: 500 13px/1 var(--sans);
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.pages a:hover { background: var(--paper); color: var(--ink); }
+.pages a[aria-current] { background: #e8f0fb; color: var(--accent); }
 .provenance { display: flex; gap: 22px; margin: 0 0 0 auto; }
 .provenance div { display: grid; gap: 1px; }
 .provenance dt {
@@ -292,7 +307,7 @@ input { accent-color: var(--accent); }
 
 /* ---------- Narrow screens: stack, map first ---------- */
 @media (max-width: 900px) {
-  body { display: block; height: auto; overflow: auto; }
+  body.atlas-page { display: block; height: auto; overflow: auto; }
   .topbar { flex-wrap: wrap; gap: 10px 20px; padding: 10px 16px; }
   .provenance { margin: 0; flex-wrap: wrap; gap: 8px 18px; }
   .provenance div:nth-child(2) { display: none; }  /* metric is stated on the legend */
@@ -308,3 +323,47 @@ input { accent-color: var(--accent); }
   .pin[aria-label*="· online"]::after { animation: none; opacity: 0.6; }
   .pin { transition: none; }
 }
+
+/* ---------- Statistics page (statistics.html) on the same tokens ---------- */
+.stats-page main.statistics { width: min(1100px, 100% - 32px); margin: 24px auto 48px; }
+.stats-page h1 { margin: 0 0 4px; font: 600 26px/1.2 var(--sans); letter-spacing: -0.01em; color: var(--ink); }
+.stats-page h2 { margin: 0 0 6px; font: 600 15px/1.3 var(--sans); color: var(--ink); }
+.stats-page h3 { font: 600 13px/1.3 var(--sans); color: var(--ink); }
+.stats-page .intro { margin: 0 0 16px; color: var(--ink-2); }
+.stats-page .note { font-size: 12px; color: var(--ink-3); }
+.stats-page .atlas, .stats-page .stats-cards > div {
+  margin: 12px 0 0;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  box-shadow: none;
+}
+.stats-page .stats-panel { padding: 16px 18px; }
+.stats-page .toolbar { padding: 0; gap: 12px; }
+.stats-page .stats-filters label { font: 500 11px/1.2 var(--sans); color: var(--ink-2); }
+.stats-page .stats-cards { margin-top: 12px; }
+.stats-page .stats-cards span {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.stats-page .stats-cards strong { margin-top: 8px; font: 500 28px/1.1 var(--mono); color: var(--accent); }
+.stats-page table { font-size: 13px; }
+.stats-page th {
+  font: 500 10px/1.2 var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--rule-strong);
+}
+.stats-page td { border-bottom: 1px solid var(--rule); font-variant-numeric: tabular-nums; }
+.stats-page td:nth-child(n+3) { font-family: var(--mono); font-size: 12px; }
+.stats-page .trend-chart { border-bottom: 1px solid var(--rule-strong); gap: 3px; }
+.stats-page .trend-chart span { background: var(--accent); border-radius: 2px 2px 0 0; }
+.stats-page .trend-chart .missing { border: 1px dashed var(--ink-3); background: transparent; }
+.stats-page .trend-chart .low { opacity: 0.45; }
+.stats-page #status { font-size: 12px; color: var(--ink-2); }
+.stats-page summary { font-size: 12px; color: var(--ink-2); }
+.pages a[aria-current] { text-decoration: none; }
+.stats-page .trend-chart { gap: 4px; }

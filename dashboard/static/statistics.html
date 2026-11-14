@@ -1,17 +1,29 @@
 <!doctype html>
-<html lang="en" data-theme="forest">
+<html lang="en" data-theme="pro">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Chirp — Bird statistics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="statistics.css">
+<link rel="stylesheet" href="pro.css">
 <script src="statistics.js" defer></script>
 </head>
-<body>
-<header><a href="/" aria-label="Chirp map">◉ chirp</a><nav aria-label="Dashboard"><a href="/">Map</a><a href="/statistics.html" aria-current="page">Statistics</a></nav></header>
+<body class="stats-page">
+<header class="topbar">
+  <a class="brand" href="/" aria-label="Chirp map"><span class="mark" aria-hidden="true"></span>chirp<small>Field Atlas</small></a>
+  <nav class="pages" aria-label="Dashboard"><a href="/">Map</a><a href="/statistics.html" aria-current="page">Statistics</a></nav>
+  <dl class="provenance">
+    <div><dt>Model</dt><dd>BirdNET v2.4 · on-device</dd></div>
+    <div><dt>Metric</dt><dd>detection-min / listening h</dd></div>
+    <div><dt>Times</dt><dd>UTC</dd></div>
+  </dl>
+</header>
 <main class="statistics">
-<p class="eyebrow">CHIRP FIELD ATLAS</p>
+<p class="eyebrow">Statistics</p>
 <h1>Bird statistics</h1>
 <p class="intro">Compare detected bird activity, listening effort and changes over time.</p>
 <section class="atlas stats-panel" aria-label="Statistics filters">
