@@ -1,3 +1,2 @@
-# Installed by App Lab if supported (unverified). main.py falls back to ~/chirp-test/lib.
 ai_edge_litert
 numpy

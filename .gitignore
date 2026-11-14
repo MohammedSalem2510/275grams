@@ -16,6 +16,10 @@ __pycache__/
 # App Lab
 .cache/
 
+# Models are copied onto the board by hand, never committed
+unoq-app/models/birdnet/
+*.tflite
+
 # Raw audio data (lives in the Edge Impulse project, not git)
 data/
 *.wav

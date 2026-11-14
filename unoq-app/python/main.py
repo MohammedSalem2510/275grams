@@ -2,17 +2,16 @@
 import json
 import os
 import subprocess
-import sys
 import threading
 from pathlib import Path
 
 from arduino.app_utils import App, Bridge
 
-# Model + runtime are installed by hand on the board, not in git (see CLAUDE.md).
-MODEL_DIR = Path(os.environ.get("CHIRP_MODEL_DIR", "/home/arduino/chirp-test"))
-sys.path.append(str(MODEL_DIR / "lib"))  # fallback if requirements.txt didn't install ai_edge_litert
+# App Lab runs python/ in a container that only sees the app folder, so the model
+# lives in unoq-app/models/birdnet/ on the board (gitignored, ~50 MB, CC BY-NC-SA).
+MODEL_DIR = Path(os.environ.get("CHIRP_MODEL_DIR", Path(__file__).resolve().parent.parent / "models" / "birdnet"))
 
-from bird_audio import WINDOW_BYTES, predict  # noqa: E402
+from bird_audio import WINDOW_BYTES, predict
 
 MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
 THRESHOLD = 0.5
