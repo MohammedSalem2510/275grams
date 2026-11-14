@@ -7,9 +7,15 @@ Never touches live stations. Every window carries model_version "SIMULATED".
 Synthetic windows are 60 s each (the contract allows up to 60 s), so one window is
 one possible detection-minute per species.
 
-Planted scenario for the early-warning demo: reed bunting at sim-3 (Laajalahti reeds)
-falls to ~45 % of its usual activity over the last 2 weeks. Nothing else changes
-beyond week-to-week noise, so it should be the only alert.
+Planted scenario for the early-warning demo: Willow Tit at sim-5 (Espoo Central Park), a
+year-round resident that really is declining in Finland, falls to ~45 % of its usual activity
+over the last 2 weeks. Nothing else changes beyond week-to-week noise, so it should be the
+only alert.
+
+The 12 weeks run from late August to today (mid-November), so summer migrants fade out
+(MIGRANTS). They're gone, or down to a steady overwintering remnant, before the 8-week alert
+window starts, so migration never shows up as a decline. A real deployment needs same-season
+baselines from earlier years for that (protocol/http.md).
 """
 import math
 import random
@@ -21,6 +27,30 @@ from dashboard.server import DB_PATH, INSERT_WINDOW, NEW_COLUMNS, SCHEMA, STATIO
 MODEL = "SIMULATED"
 DAYS = 84
 WINDOW_S = 60.0
+
+# Species that leave Finland in autumn: (fade starts, gone by) in days ago, and the share that
+# overwinters. Every fade ends before day 56, outside the 2 + 6 week alert comparison.
+MIGRANTS = {
+    "Acrocephalus schoenobaenus_Sedge Warbler": (80, 62, 0.0),
+    "Phylloscopus trochilus_Willow Warbler": (76, 60, 0.0),
+    "Grus grus_Common Crane": (72, 58, 0.0),
+    "Emberiza schoeniclus_Reed Bunting": (74, 58, 0.0),
+    "Fringilla coelebs_Common Chaffinch": (76, 58, 0.0),
+    "Erithacus rubecula_European Robin": (74, 58, 0.0),
+    "Larus canus_Common Gull": (70, 58, 0.35),
+}
+
+
+def presence(species: str, days_ago: int) -> float:
+    """1 while a migrant is here, then a linear fade to its overwintering share."""
+    if species not in MIGRANTS:
+        return 1.0
+    start, gone, stays = MIGRANTS[species]
+    if days_ago >= start:
+        return 1.0
+    if days_ago <= gone:
+        return stays
+    return stays + (1 - stays) * (days_ago - gone) / (start - gone)
 
 # Per station: listening sessions in UTC hours (Finland is UTC+2 in November), days ago the
 # station was "offline", and species -> (song-bout start chance per minute, peak UTC hour).
@@ -47,7 +77,6 @@ SITES = {
             "Grus grus_Common Crane": (0.015, 5),
             "Fringilla coelebs_Common Chaffinch": (0.015, 4),
         },
-        "decline": ("Emberiza schoeniclus_Reed Bunting", 14, 0.45),  # (species, last N days, factor)
     },
     "sim-4": {
         "sessions": [(6, 9), (14, 17)],
@@ -63,8 +92,10 @@ SITES = {
         "species": {
             "Dendrocopos major_Great Spotted Woodpecker": (0.025, 7),
             "Parus major_Great Tit": (0.035, 6),
+            "Poecile montanus_Willow Tit": (0.06, 6),
             "Erithacus rubecula_European Robin": (0.02, 5),
         },
+        "decline": ("Poecile montanus_Willow Tit", 14, 0.45),  # (species, last N days, factor)
     },
     "sim-6": {
         "sessions": [(6, 10), (12, 15)],
@@ -118,8 +149,9 @@ def generate(station_id: str, site: dict, rng: random.Random, now: datetime):
                 windows.append((wid, station_id, utc(t), WINDOW_S, MODEL, utc(now),
                                 temperature(day, hour, day_noise), 1.0, None, None))
                 for sp, (base, peak) in site["species"].items():
-                    mood = weekly_mood.setdefault((sp, day // 7), rng.uniform(0.85, 1.15))
+                    mood = weekly_mood.setdefault((sp, day // 7), rng.uniform(0.95, 1.05))
                     factor = decline_factor if sp == decline_sp and day <= decline_days else 1.0
+                    factor *= presence(sp, day)
                     if sp not in singing and rng.random() < bout_chance(base, peak, hour) * mood * factor:
                         singing[sp] = rng.randint(1, 4)  # one bird repeating: several minutes
                 for sp in singing:
@@ -135,7 +167,6 @@ def main():
     unknown = set(SITES) - sim_ids
     if unknown:
         raise SystemExit(f"refusing: {sorted(unknown)} not marked simulated in stations.json")
-    rng = random.Random(275)  # same demo data on every laptop
     now = datetime.now(timezone.utc)
     with sqlite3.connect(DB_PATH) as c:
         c.executescript(SCHEMA)
@@ -146,7 +177,9 @@ def main():
         c.execute("DELETE FROM detections WHERE window_id IN (SELECT window_id FROM windows WHERE model_version = ?)", (MODEL,))
         c.execute("DELETE FROM windows WHERE model_version = ?", (MODEL,))
         for sid, site in SITES.items():
-            windows, detections = generate(sid, site, rng, now)
+            # One fixed stream per station: the same demo data on every machine and at any time of
+            # day (only today's unfinished session varies, and it comes last in each stream).
+            windows, detections = generate(sid, site, random.Random(f"275-{sid}"), now)
             c.executemany(INSERT_WINDOW, windows)
             c.executemany("INSERT INTO detections VALUES (?,?,?)", detections)
             print(f"{sid}: {len(windows) * WINDOW_S / 3600:.0f} h listening, {len(detections)} detection-minutes")
