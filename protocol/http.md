@@ -28,6 +28,6 @@ Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-o
 | `GET /api/stations` | Registry plus `status`: `online` (a window received in the last 30 s), `offline`, `inactive` (never reported) or `simulated` |
 | `GET /api/species?start=&end=` | `[{species, detections}]` for the search box |
 | `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score}]` |
-| `GET /api/rates?species=&start=&end=` | One row per station: `{station_id, detections, listening_s, rate_per_hour}`. `rate_per_hour` is **`null` when there's no data**, which is never shown as zero. |
+| `GET /api/rates?species=&start=&end=` | One row per station: `{station_id, simulated, detections, listening_s, rate_per_hour, low_effort}`. `rate_per_hour` is **`null` under 60 s of listening (no data)**, which is never shown as zero. `low_effort` is `true` when there's a rate but under 15 min of listening behind it. The map must flag those pins (e.g. hollow or dashed) and show the listening time. |
 
 Species values are full BirdNET labels (`Scientific name_Common Name`). Split on the first `_` for display.
