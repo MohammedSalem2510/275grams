@@ -30,7 +30,7 @@ outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the lapt
 
 
 # Common Finnish species, by BirdNET scientific name (label = "Scientific_Common").
-# Verify against BirdNET_GLOBAL_6K_V2.4_Labels.txt on the board: a typo never matches.
+# All checked against BirdNET_GLOBAL_6K_V2.4_Labels.txt on the board (14 Nov).
 FINNISH_SPECIES = {
     "Fringilla coelebs", "Parus major", "Cyanistes caeruleus", "Periparus ater",
     "Turdus merula", "Turdus philomelos", "Turdus pilaris", "Turdus iliacus",
@@ -39,6 +39,7 @@ FINNISH_SPECIES = {
     "Emberiza citrinella", "Pyrrhula pyrrhula", "Spinus spinus", "Chloris chloris",
     "Passer domesticus", "Dendrocopos major", "Garrulus glandarius", "Pica pica",
     "Corvus cornix", "Columba palumbus", "Larus canus", "Grus grus",
+    "Emberiza schoeniclus", "Acrocephalus schoenobaenus",
 }
 
 
