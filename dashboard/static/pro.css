@@ -15,8 +15,10 @@
   --accent: #b2d4b2;
   --accent-ink: #3f6f3f;
   /* read by app.js for pin colours: sequential single hue, light -> dark */
-  --low: #b7d3f6;
-  --high: #104281;
+  /* Activity ramp: one hue, light -> dark, from the brand pastel to deep forest green.
+     OKLab lightness falls steadily 0.84 -> 0.37 (same range as the old blue ramp). */
+  --low: #b2d4b2;
+  --high: #1f4a24;
   --good: #0ca30c;
   --critical: #d03b3b;
   /* names style.css still uses */
@@ -170,7 +172,8 @@ body.atlas-page {
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  border: 2px solid var(--good);
+  border: 2px solid var(--ink);  /* not green: it must stand out from a green pin */
+  box-shadow: 0 0 0 1px #fff;     /* thin white edge so it also shows on dark satellite imagery */
   animation: pulse 2.4s ease-out infinite;
 }
 @keyframes pulse {
@@ -224,7 +227,7 @@ body.atlas-page {
 }
 .keys li { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .keys b { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.k-live { background: var(--high); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--good); }
+.k-live { background: var(--high); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); }
 .k-sim { background: var(--high) repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0 2px, transparent 2px 4px); }
 .k-nodata { border: 2px dashed var(--ink-3); background: var(--surface); }
 
