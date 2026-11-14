@@ -18,6 +18,7 @@ STATIONS = json.loads((HERE / "stations.json").read_text(encoding="utf-8"))
 LIVE_IDS = {s["station_id"] for s in STATIONS if not s["simulated"]}
 ONLINE_WITHIN_S = 30
 MIN_LISTENING_S = 60  # less than this in a range = "no data", not a rate
+LOW_EFFORT_S = 15 * 60  # a rate exists, but on too little listening to trust: flag it
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS windows (          -- listening effort: one row per analysed window
@@ -69,7 +70,6 @@ def window_filter(start: datetime | None, end: datetime | None) -> tuple[str, li
 
 def rate_per_hour(detections: int, listening_s: float) -> float | None:
     """Detections per valid listening hour; None means "no data", never zero activity."""
-    # TODO(human): refine the no-data / low-effort rule.
     if listening_s < MIN_LISTENING_S:
         return None
     return detections / (listening_s / 3600)
@@ -175,8 +175,10 @@ def rates(species: str | None = None, start: datetime | None = None, end: dateti
     for s in STATIONS:
         sid = s["station_id"]
         n, secs = counts.get(sid, 0), listening.get(sid) or 0.0
+        rate = rate_per_hour(n, secs)
         out.append({"station_id": sid, "simulated": s["simulated"], "detections": n,
-                    "listening_s": secs, "rate_per_hour": rate_per_hour(n, secs)})
+                    "listening_s": secs, "rate_per_hour": rate,
+                    "low_effort": rate is not None and secs < LOW_EFFORT_S})
     return out
 
 

@@ -12,7 +12,7 @@ async function refresh() {
   const [st, rates, det] = await Promise.all(['/api/stations', '/api/rates', '/api/detections?limit=20'].map(u => fetch(u).then(r => r.json())));
   const byId = Object.fromEntries(rates.map(r => [r.station_id, r]));
   const t = document.getElementById('st'); t.replaceChildren(); row(t, ['Station', 'Status', 'Detections', 'Listening', 'Rate / h'], 'th');
-  st.forEach(s => { const r = byId[s.station_id]; row(t, [s.name, s.status, r.detections, (r.listening_s / 60).toFixed(1) + ' min', r.rate_per_hour === null ? 'no data' : r.rate_per_hour.toFixed(1)]); });
+  st.forEach(s => { const r = byId[s.station_id]; row(t, [s.name, s.status, r.detections, (r.listening_s / 60).toFixed(1) + ' min', r.rate_per_hour === null ? 'no data' : r.rate_per_hour.toFixed(1) + (r.low_effort ? ' ⚠ low effort' : '')]); });
   const d = document.getElementById('det'); d.replaceChildren(); row(d, ['Time (UTC)', 'Station', 'Species', 'Score'], 'th');
   det.forEach(x => row(d, [x.start.slice(11, 19), x.station_id, x.species.split('_').slice(1).join('_'), x.score.toFixed(2)]));
 }
