@@ -9,7 +9,7 @@
 //   Arduino USB Camera: clamp-style, clips onto the lid mast
 // CHECK the UNO hole positions against the real board before printing the base.
 
-part = "all";          // "base" | "lid" | "shield" | "all" (preview layout)
+part = "all";          // "base" | "lid" | "shield" | "fit_test" | "all" (preview layout)
 
 /* [Print] */
 wall = 2.4;            // 6 perimeters at 0.4 mm nozzle
@@ -23,12 +23,16 @@ $fn = 40;
 /* [Parts] */
 uno = [68.85, 53.34, 15];   // L (USB-C edge at x=0), W, H with components
 uno_holes = [[14.0, 2.54], [15.24, 50.8], [66.04, 7.62], [66.04, 35.56]];  // UNO R3 pattern
-standoff_h = 4;
+standoff_h = 6;             // the UNO Q has connectors on its underside
 hub = [119, 27.8, 16];
 bank = [60, 100, 25];       // lying flat: 60 wide (x), 100 deep (y)
 modulino = [41, 25.36];
 mod_hole = [32, 16];
 pilot = 2.6;                // self-tapping M3 / M2.5 pilot
+
+/* [Thermo shield joint, heights from the bottom edge of base and shield] */
+shield_bolt_z = 40;         // above the Thermo board, below the shield roof
+shield_qwiic_z = 22;
 
 /* [Interior layout] */
 gap = 8;
@@ -68,9 +72,9 @@ module base() {
     for (x = [outer[0] * 0.25, outer[0] * 0.75], z = [10, outer[2] - 12])
       translate([x - 13, outer[1] - wall - 1, z]) cube([26, wall + 2, 5]);
     // Qwiic + bolt holes for the Thermo shield on the right wall
-    translate([outer[0] - wall - 1, outer[1] / 2 - 6, floor_t + 22]) cube([wall + 2, 12, 6]);
+    translate([outer[0] - wall - 1, outer[1] / 2 - 6, shield_qwiic_z]) cube([wall + 2, 12, 6]);
     for (dy = [-15, 15])
-      translate([outer[0] - wall - 1, outer[1] / 2 + dy, floor_t + 30]) rotate([0, 90, 0]) cylinder(d = 3.4, h = wall + 2);
+      translate([outer[0] - wall - 1, outer[1] / 2 + dy, shield_bolt_z]) rotate([0, 90, 0]) cylinder(d = 3.4, h = wall + 2);
   }
   // corner bosses for the lid screws
   for (p = corner_boss) translate([p[0], p[1], floor_t]) boss(inner[2] - 0.2, 8);
@@ -98,9 +102,13 @@ module lid() {
     union() {
       rounded_box([outer[0], outer[1], lid_t]);
       // locating lip that drops inside the walls
-      translate([wall + fit, wall + fit, -lip]) difference() {
-        cube([inner[0] - 2 * fit, inner[1] - 2 * fit, lip]);
-        translate([2, 2, -1]) cube([inner[0] - 2 * fit - 4, inner[1] - 2 * fit - 4, lip + 2]);
+      difference() {
+        translate([wall + fit, wall + fit, -lip]) difference() {
+          cube([inner[0] - 2 * fit, inner[1] - 2 * fit, lip]);
+          translate([2, 2, -1]) cube([inner[0] - 2 * fit - 4, inner[1] - 2 * fit - 4, lip + 2]);
+        }
+        // notches so the lip clears the corner screw posts and the lid seats fully
+        for (p = corner_boss) translate([p[0], p[1], -lip - 1]) cylinder(d = 8 + 2 * fit + 1, h = lip + 1);
       }
       // camera mast at the back
       translate([(outer[0] - mast[0]) / 2, outer[1] - 22, lid_t - 0.2]) cube(mast + [0, 0, 0.2]);
@@ -134,8 +142,8 @@ module shield() {
       translate([-4, -4, shield[2] - wall]) cube([shield[0] + 8, shield[1] + 4, wall]);
     }
     // back face bolts + Qwiic slot (match the base's right wall)
-    for (dx = [-15, 15]) translate([shield[0] / 2 + dx, shield[1] + 1, 30]) rotate([90, 0, 0]) cylinder(d = 3.4, h = wall + 2);
-    translate([shield[0] / 2 - 6, shield[1] - wall - 1, 22]) cube([12, wall + 2, 6]);
+    for (dx = [-15, 15]) translate([shield[0] / 2 + dx, shield[1] + 1, shield_bolt_z]) rotate([90, 0, 0]) cylinder(d = 3.4, h = wall + 2);
+    translate([shield[0] / 2 - 6, shield[1] - wall - 1, shield_qwiic_z]) cube([12, wall + 2, 6]);
   }
   // Thermo bosses on the back face, board vertical
   translate([shield[0] / 2, shield[1] - wall, 22]) rotate([90, 0, 0])
@@ -144,9 +152,10 @@ module shield() {
 
 // ---------------- LAYOUT ----------------
 if (part == "base") base();
+else if (part == "fit_test") intersection() { base(); cube([outer[0], outer[1], floor_t + standoff_h]); }  // quick check of UNO holes + layout
 else if (part == "lid") translate([0, 0, lid_t]) rotate([180, 0, 0]) translate([0, -outer[1], 0]) lid();  // print upside down
 else if (part == "shield") translate([0, 0, shield[2]]) rotate([180, 0, 0]) translate([0, -shield[1], 0]) shield();  // roof on the bed
-else {
+else if (part == "all") {
   base();
   translate([0, 0, outer[2] + 25]) lid();
   translate([outer[0] + 25, outer[1] / 2 - shield[1] / 2, 0]) shield();

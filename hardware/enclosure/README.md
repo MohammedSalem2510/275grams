@@ -1,17 +1,19 @@
 # Chirp station enclosure
 
-Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **132 × 143 × 47 mm**, so it fits any 220 × 220 mm bed.
+Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **132 × 143 × 47 mm** (base + lid), so it fits any 220 × 220 mm bed.
 
 | File | Part | Print orientation |
 |---|---|---|
 | `base.stl` | Tray: UNO Q standoffs, power-bank bay, hub rail, side vents, strap slots, charging notch | As exported, floor on the bed |
 | `lid.stl` | Camera clamp mast, Knob + Buzzer mounts with Qwiic slots, camera cable slot, locating lip | As exported, already flipped (top face on the bed) |
 | `shield.stl` | Louvred radiation shield for Modulino Thermo | As exported, roof on the bed |
+| `fit_test.stl` | **Print this first:** just the floor, UNO Q posts and rails, a few mm tall | As exported |
 
 **Suggested settings:** PLA or PETG (PETG for outdoor use), 0.2 mm layers, 3 walls, 20 % infill, **no supports**.
 
 ## Before printing
-- **Check the UNO Q hole positions.** The model uses the standard UNO R3 pattern. Lay the board on a printed base or a paper template and adjust `uno_holes` if it doesn't line up.
+- **Print `fit_test.stl` first.** It's the base's floor, posts and rails only. Lay the UNO Q on its posts, and the power bank and hub in their places. The model uses the standard UNO R3 hole pattern; if the holes don't line up, adjust `uno_holes` and export again.
+- UNO Q posts are 6 mm tall because the board has connectors on its underside.
 - If a test print is tight, raise `clr` (default 1.0 mm) and export again. Nothing else needs changing.
 
 ## Assembly
@@ -29,3 +31,8 @@ openscad -D 'part="base"' -o base.stl chirp_enclosure.scad
 openscad -D 'part="lid"' -o lid.stl chirp_enclosure.scad
 openscad -D 'part="shield"' -o shield.stl chirp_enclosure.scad
 ```
+
+## Checks done
+- Every part renders as a single solid (no loose posts).
+- Interference checks in OpenSCAD: the seated lid doesn't overlap the base (its lip is notched round the corner screw posts), and the shield's bolt heads clear the Thermo posts. A control check confirmed the un-notched lid does clash, so the test detects real problems.
+- Not checked: the UNO Q hole positions against a real board (use the fit test), and real-world cable routing.
