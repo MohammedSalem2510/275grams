@@ -41,7 +41,9 @@
 </div>
 <p id="status" role="status">Loading statistics…</p>
 </section>
-<section class="stats-cards source-totals" id="source-totals" aria-label="Activity by data source"></section>
+<section class="stats-cards activity-total" aria-label="Activity summary">
+  <div><span>Activity</span><strong id="activity-minutes">—</strong><p class="note" id="activity-effort"></p></div>
+</section>
 <section id="decline-alerts" class="atlas stats-panel"><h2>Decline alerts</h2><p class="note">Compares the last two weeks with the previous six. Alerts flag activity for review.</p><ul id="alerts"></ul></section>
 <section class="atlas stats-panel"><h2>Station comparison</h2><div class="table-scroll"><table><thead><tr><th scope="col">Station</th><th scope="col">Status</th><th scope="col">Detection-minutes</th><th scope="col">Hours</th><th scope="col">Rate / hour</th></tr></thead><tbody id="stations"></tbody></table></div></section>
 <section class="atlas stats-panel"><h2>Weekly activity</h2><label for="trend-station">Chart station</label> <select id="trend-station"><option value="">Choose a station</option></select><p class="note">Last 12 weeks · UTC · detection-minutes per listening hour</p><div id="trends"></div></section>

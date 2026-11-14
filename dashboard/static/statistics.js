@@ -100,7 +100,8 @@ async function refresh() {
   const filter = species ? {species} : {};
   const visible = stations.filter(station => !selected || station.station_id === selected);
   element('status').textContent = 'Loading statistics…';
-  element('source-totals').replaceChildren();
+  element('activity-minutes').textContent = '—';
+  element('activity-effort').textContent = '';
   trendSeries = [];
   for (const id of ['stations', 'trends', 'alerts', 'detections']) element(id).replaceChildren();
   try {
@@ -112,23 +113,11 @@ async function refresh() {
     ]);
     if (request !== requestVersion) return;
     const shown = rates.filter(rate => !selected || rate.station_id === selected);
-    for (const simulated of [false, true]) {
-      const group = shown.filter(rate => rate.simulated === simulated);
-      if (!group.length) continue;
-      const minutes = group.reduce((sum, r) => sum + r.detections, 0);
-      const seconds = group.reduce((sum, r) => sum + r.listening_s, 0);
-      const card = document.createElement('div');
-      const title = document.createElement('span');
-      title.textContent = simulated ? 'Simulated activity' : 'Live station observations';
-      const metric = document.createElement('strong');
-      metric.textContent = fmt(minutes) + ' detection-min';
-      const effort = document.createElement('p');
-      effort.className = 'note';
-      effort.textContent = fmt(seconds / 3600) + ' listening hours · ' +
-        (seconds < 60 ? 'Rate unavailable' : fmt(minutes * 3600 / seconds) + ' detection-min/h');
-      card.append(title, metric, effort);
-      element('source-totals').append(card);
-    }
+    const minutes = shown.reduce((sum, rate) => sum + rate.detections, 0);
+    const seconds = shown.reduce((sum, rate) => sum + rate.listening_s, 0);
+    element('activity-minutes').textContent = fmt(minutes) + ' detection-min';
+    element('activity-effort').textContent = fmt(seconds / 3600) + ' listening hours · ' +
+      (seconds < 60 ? 'Rate unavailable' : fmt(minutes * 3600 / seconds) + ' detection-min/h');
     fillRows('stations', shown.map(rate => row([
       stationName(rate.station_id),
       stations.find(station => station.station_id === rate.station_id)?.status ?? 'Unknown',

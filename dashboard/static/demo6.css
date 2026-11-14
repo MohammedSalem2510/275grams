@@ -29,6 +29,9 @@
   .workspace:has(#station-panel[hidden]) .map { height:calc(100dvh - 68px); }
 }
 .map .pin { z-index:3; }
+#sample.leaflet-container { z-index:0; }
+#sample .leaflet-image-layer { width:auto; max-width:none; }
+[data-appearance=dark] #sample .leaflet-image-layer { filter:invert(.89) hue-rotate(155deg) saturate(.55); }
 .station-group {
   position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
   padding:6px 9px; border:2px solid white; border-radius:16px;

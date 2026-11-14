@@ -61,7 +61,9 @@ python -m dashboard.seed_simulated          # optional: labelled synthetic histo
 python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000
 ```
 
-Open http://127.0.0.1:8000/. The station grid works without a Google Maps key. For the Google basemap (Street, or Satellite with 3D tilt), copy `dashboard/static/maps-config.js` to `maps-config.local.js` (gitignored) and paste a browser-restricted Maps JavaScript API key into the copy.
+Open http://127.0.0.1:8000/. The dashboard includes an offline street map of the Espoo station area. The map, station readings and heatmap load directly from the dashboard server. On the field unit, join the **Chirp** Wi-Fi network and open http://10.42.0.1:8000/map.html on your phone. Choose “stay connected” if the phone reports that the network has no internet. On other networks, append `?offline=1` to the map URL to use the bundled map.
+
+For online Google Street and Satellite views, copy `dashboard/static/maps-config.js` to `maps-config.local.js` (gitignored) and paste a browser-restricted Maps JavaScript API key into the copy. The bundled Espoo map is a cropped WebP of the [Helsinki metropolitan area general map](https://hri.fi/data/dataset/paakaupunkiseudun-yleiskartta), City of Helsinki, [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Its viewer uses Leaflet 1.9.4 under the [BSD licence](dashboard/static/vendor/leaflet/LICENSE).
 
 **Station (Arduino UNO Q)**, over SSH:
 
@@ -94,6 +96,8 @@ Plug the USB camera into the powered USB-C hub and the Modulinos into the Qwiic 
 - **Next:** cheap satellite microphone nodes around each UNO Q, same-season baselines from multi-year data (so migration isn't mistaken for decline), and human review states for detections.
 
 ## Credits and licence
+
+**Sara** was the main contributor to the recent dashboard UI changes. Through her prompts and feedback, she guided the design of the landing page, the light and dark forest scenes, the animated ducks, and the collapsible detections list on the statistics page.
 
 Chirp's own code, firmware and enclosure design are released under the [MIT licence](LICENSE).
 

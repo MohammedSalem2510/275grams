@@ -3,6 +3,16 @@ const $ = id => document.getElementById(id);
 let stations = [], rates = new Map(), selected, version = 0, detectionVersion = 0;
 let refreshGoogle;
 let heatZoom = 12, heatFrame = 0;
+const fieldBounds = [[60.0603391224,24.5558435501],[60.2792946268,24.9241528166]];
+const fieldMap = L.map('sample', {zoomControl:false, minZoom:10, maxZoom:15, zoomSnap:0.25,
+  maxBounds:L.latLngBounds(fieldBounds).pad(0.35)}).setView([60.17,24.74],12);
+L.control.zoom({position:'bottomright'}).addTo(fieldMap);
+L.imageOverlay('espoo-field-map.webp', fieldBounds, {attribution:
+  '<a href="https://hri.fi/data/dataset/paakaupunkiseudun-yleiskartta">City of Helsinki</a> · <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>'}).addTo(fieldMap);
+const fieldPins=L.layerGroup().addTo(fieldMap);
+let fieldFramed=false;
+fieldMap.on('move zoom resize',scheduleHeatmap);
+new ResizeObserver(()=>{if(!$('sample').hidden) fieldMap.invalidateSize();}).observe($('sample'));
 function scheduleHeatmap() {
   if (!heatFrame) heatFrame = requestAnimationFrame(drawHeatmap);
 }
@@ -15,9 +25,9 @@ function drawHeatmap() {
   const ctx=canvas.getContext('2d');
   if(!$('heat').checked)return;
   const field=new Float32Array(canvas.width*canvas.height);
-  const zoom=$('google-map').hidden ? 12 : heatZoom;
+  const zoom=$('sample').hidden ? heatZoom : fieldMap.getZoom();
   const radius=scale * Math.max(9, Math.min(110, 65 * 2 ** (zoom-12)));
-  const host=$('sample').hidden?$('google-map'):$('sample-points');
+  const host=$('sample').hidden?$('google-map'):$('sample');
   host.querySelectorAll('.pin').forEach((pin,i)=>{
     const rate=rates.get(stations[i]?.station_id)?.rate_per_hour;
     if(!(rate>0))return;
@@ -156,7 +166,7 @@ function closeStation() {
   window.chirpSpecies?.show(null,filters());
   detections(filters());
   render();
-  const host=$('google-map').hidden?$('sample-points'):$('google-map');
+  const host=$('sample').hidden?$('google-map'):$('sample');
   host.querySelectorAll('.pin')[stations.findIndex(s=>s.station_id===previous)]?.focus();
 }
 window.chirpFocus=(id,species)=>{
@@ -190,14 +200,19 @@ function render() {
   // Only explain when the number needs a caveat: no listening is "no data", never zero birds.
   $('station-info').textContent=!station?'':!hasRate?(row?.listening_s>0?'Not enough listening yet for a rate (under 1 minute).':'No listening in this period, so no data. That is not zero birds.')
     :row.low_effort?'Low listening effort (under 15 min): treat this rate with caution.':'';
-  const lat=stations.map(s=>s.lat), lon=stations.map(s=>s.lon);
-  const south=Math.min(...lat)-.001,north=Math.max(...lat)+.001;
-  const west=Math.min(...lon)-.001,east=Math.max(...lon)+.001;
-  $('sample-points').replaceChildren(...stations.flatMap((s,i)=>makePoint(i).map(el=>{
-    el.style.left=(15+70*(s.lon-west)/(east-west))+'%';
-    el.style.top=(15+70*(north-s.lat)/(north-south))+'%';
-    return el;
-  })));
+  if (!$('sample').hidden) {
+    fieldPins.clearLayers();
+    stations.forEach((s,i)=>{
+      const [,pin]=makePoint(i);
+      L.DomEvent.disableClickPropagation(pin);
+      const icon=L.divIcon({className:'field-pin',html:pin,iconSize:[0,0]});
+      L.marker([s.lat,s.lon],{icon,keyboard:false}).addTo(fieldPins);
+    });
+    if (!fieldFramed && stations.length) {
+      fieldMap.fitBounds(stations.map(s=>[s.lat,s.lon]),{padding:[40,66],maxZoom:13});
+      fieldFramed=true;
+    }
+  }
   document.querySelectorAll('.station-ref').forEach(el=>el.textContent=station?' · '+station.name:'');
   refreshGoogle?.();
   scheduleHeatmap();
@@ -231,19 +246,21 @@ async function refresh() {
   }
 }
 
-function googleFallback(message) {
+function googleFallback() {
   refreshGoogle=null;
   $('google-map').hidden=true;
   $('map-view-control').hidden=true;
   $('map-tilt-control').hidden=true;
   $('sample').hidden=false;
-  $('map-status').textContent=message;
+  $('map-status').textContent='Espoo · offline map';
+  fieldMap.invalidateSize();
+  render();
   scheduleHeatmap();
 }
 function connectGoogle(key) {
   if(!key) return;
   let failed=false, overlay;
-  const fail=()=>{failed=true;clearTimeout(timeout);overlay?.setMap(null);googleFallback('Station positions · Google Maps unavailable');};
+  const fail=()=>{failed=true;clearTimeout(timeout);overlay?.setMap(null);googleFallback();};
   const timeout=setTimeout(fail,15000);
   window.gm_authFailure=fail;
   window.chirpInitMap=()=>{
@@ -389,9 +406,13 @@ $('period').onchange=refresh;
 $('heat').onchange=render;
 refresh();
 setInterval(refresh,15000);
-const localMapsConfig = document.createElement('script');
-localMapsConfig.src = 'maps-config.local.js';
-localMapsConfig.onload = localMapsConfig.onerror = () => {
-  connectGoogle((window.CHIRP_MAPS_KEY || '').trim());
-};
-document.head.appendChild(localMapsConfig);
+if (location.hostname !== '10.42.0.1' && !new URLSearchParams(location.search).has('offline')) {
+  const fonts = document.createElement('link');
+  fonts.rel = 'stylesheet';
+  fonts.href = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap';
+  document.head.appendChild(fonts);
+  const localMapsConfig = document.createElement('script');
+  localMapsConfig.src = 'maps-config.local.js';
+  localMapsConfig.onload = localMapsConfig.onerror = () => connectGoogle((window.CHIRP_MAPS_KEY || '').trim());
+  document.head.appendChild(localMapsConfig);
+}
