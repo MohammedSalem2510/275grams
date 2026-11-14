@@ -16,9 +16,15 @@ To change this contract, edit this file in its own `protocol:` commit **before**
   "start": "2026-11-14T00:12:03.120Z",
   "duration_s": 3.0,
   "model_version": "BirdNET_GLOBAL_6K_V2.4",
-  "detections": [{"species": "Fringilla coelebs_Common Chaffinch", "score": 0.97}]  // [] if none accepted
+  "detections": [{"species": "Fringilla coelebs_Common Chaffinch", "score": 0.97}],  // [] if none accepted
+  // optional context (omit or null when unavailable)
+  "temperature_c": 1.4,                  // Modulino Thermo reading at the station
+  "duty": 0.25,                          // fraction of each minute the station analyses (knob)
+  "clip": "chirp-1_20261114T101200Z.wav",// field recording holding this window, if recording is on
+  "clip_offset_s": 27.0                  // where this window starts inside that clip
 }]
 ```
+Duty cycling only reduces how many windows are sent; listening time stays the sum of the windows that were actually analysed, so rates remain correct.
 Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-op, so retries never double-count.
 
 ## Dashboard → backend (read-only)
@@ -29,8 +35,9 @@ Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-o
 | `GET /api/species?start=&end=` | `[{species, detections}]` for the search box |
 | `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score}]` |
 | `GET /api/rates?species=&start=&end=` | One row per station: `{station_id, simulated, detections, listening_s, rate_per_hour, low_effort}`. `rate_per_hour` is **`null` under 60 s of listening (no data)**, which is never shown as zero. `low_effort` is `true` when there's a rate but under 15 min of listening behind it. The map must flag those pins (e.g. hollow or dashed) and show the listening time. |
-| `GET /api/trends?station_id=&species=&weeks=12` | Oldest first, one row per 7-day bin ending now: `{week_start, week_end, detections, listening_s, rate_per_hour, low_effort}` |
-| `GET /api/alerts?species=` | Early warnings, worst first: `{station_id, species, drop, recent_rate, baseline_rate, recent_listening_s, baseline_listening_s, p_value}` |
+| `GET /api/trends?station_id=&species=&weeks=12` | Oldest first, one row per 7-day bin ending now: `{week_start, week_end, detections, listening_s, rate_per_hour, low_effort, temp_c}` |
+| `GET /api/alerts?species=` | Early warnings, worst first: `{station_id, species, drop, recent_rate, baseline_rate, recent_listening_s, baseline_listening_s, p_value, recent_temp_c, baseline_temp_c}`. The temperatures are listening-weighted means, or `null` when unknown. They're context for the reviewer, not a correction. |
+| `GET /api/export/darwin-core.csv?species=&start=&end=&include_simulated=false` | Detections as a [Darwin Core](https://dwc.tdwg.org/) occurrence CSV (one row per detected species per window, `basisOfRecord=MachineObservation`, unverified), ready for GBIF / Laji.fi (FinBIF). Simulated stations are excluded unless asked for. |
 
 **Detections are counted as detection-minutes:** the number of distinct minutes in which a species was detected (all species: distinct species × minute pairs). One bird singing for a minute counts once, not once per 3 s window. `/api/detections` still lists the individual windows.
 
