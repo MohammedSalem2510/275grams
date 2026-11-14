@@ -40,6 +40,12 @@ FINNISH_SPECIES = {
     "Passer domesticus", "Dendrocopos major", "Garrulus glandarius", "Pica pica",
     "Corvus cornix", "Columba palumbus", "Larus canus", "Grus grus",
     "Emberiza schoeniclus", "Acrocephalus schoenobaenus",
+    # Winter residents (Nov field test): mostly calls, not song. NOT YET checked against Labels.txt.
+    "Poecile montanus", "Lophophanes cristatus", "Aegithalos caudatus", "Certhia familiaris",
+    "Corvus corax", "Coloeus monedula", "Corvus monedula", "Dryocopus martius", "Dryobates minor",
+    "Picoides tridactylus", "Acanthis flammea", "Loxia curvirostra", "Bombycilla garrulus",
+    "Bonasa bonasia", "Glaucidium passerinum", "Strix aluco", "Passer montanus",
+    "Anas platyrhynchos", "Cygnus cygnus", "Larus argentatus", "Larus marinus",
 }
 
 
