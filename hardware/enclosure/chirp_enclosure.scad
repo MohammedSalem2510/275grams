@@ -44,7 +44,7 @@ label_font = "Liberation Sans:style=Bold";  // bundled with OpenSCAD
 /* [Interior layout] */
 gap = 8;
 plug_room = 32;             // USB plug + moulding + cable bend, between the front parts and the hub
-hub_back_room = 0;          // set to 32 if a port you use is on the hub's BACK side (base grows ~32 mm deeper)
+hub_back_room = 32;         // USB-A (camera) is on the hub's back side; USB-C power faces forward
 bank_pos = [0, 0];
 uno_pos = [bank[0] + gap, 0];                                   // rotated: USB-C faces the back
 hub_pos = [0, max(bank[1], uno[0]) + plug_room + gap];          // room for the power-bank and UNO Q plugs
