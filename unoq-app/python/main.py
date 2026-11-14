@@ -33,23 +33,10 @@ SERVER = (os.environ.get("CHIRP_SERVER")
 outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the laptop is away
 
 
-# Common Finnish species, by BirdNET scientific name (label = "Scientific_Common").
-# All checked against BirdNET_GLOBAL_6K_V2.4_Labels.txt on the board (14 Nov).
+# Every regularly occurring Finnish bird BirdNET knows (269), as exact BirdNET labels.
 FINNISH_SPECIES = {
-    "Fringilla coelebs", "Parus major", "Cyanistes caeruleus", "Periparus ater",
-    "Turdus merula", "Turdus philomelos", "Turdus pilaris", "Turdus iliacus",
-    "Erithacus rubecula", "Cuculus canorus", "Phylloscopus trochilus", "Phylloscopus collybita",
-    "Sylvia atricapilla", "Ficedula hypoleuca", "Regulus regulus", "Sitta europaea",
-    "Emberiza citrinella", "Pyrrhula pyrrhula", "Spinus spinus", "Chloris chloris",
-    "Passer domesticus", "Dendrocopos major", "Garrulus glandarius", "Pica pica",
-    "Corvus cornix", "Columba palumbus", "Larus canus", "Grus grus",
-    "Emberiza schoeniclus", "Acrocephalus schoenobaenus",
-    # Winter residents (Nov field test): mostly calls, not song. Checked against Labels.txt.
-    "Poecile montanus", "Lophophanes cristatus", "Aegithalos caudatus", "Certhia familiaris",
-    "Corvus corax", "Corvus monedula", "Dryocopus martius", "Dryobates minor",
-    "Picoides tridactylus", "Acanthis flammea", "Loxia curvirostra", "Bombycilla garrulus",
-    "Tetrastes bonasia", "Glaucidium passerinum", "Strix aluco", "Passer montanus",
-    "Anas platyrhynchos", "Cygnus cygnus", "Larus argentatus", "Larus marinus",
+    line.strip() for line in Path(__file__).with_name("finnish_species.txt").read_text(encoding="utf-8").splitlines()
+    if line.strip() and not line.startswith("#")
 }
 
 
@@ -58,7 +45,7 @@ def accept(p: dict) -> bool:
     label = p["species"]
     if label is None or "Human" in label:  # privacy: speech never becomes evidence
         return False
-    if label.split("_", 1)[0] in FINNISH_SPECIES:
+    if label in FINNISH_SPECIES:
         return True
     print(f"[chirp] unlisted, not counted: {label} {p['score']}", flush=True)  # kept reviewable
     return False
