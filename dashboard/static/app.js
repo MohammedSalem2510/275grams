@@ -4,6 +4,13 @@ let stations = [], rates = new Map(), selected, version = 0, detectionVersion = 
 let refreshGoogle;
 const fmt = n => new Intl.NumberFormat('en-GB', {maximumFractionDigits:1}).format(n);
 const common = label => label.includes('_') ? label.slice(label.indexOf('_')+1) : label;
+function ago(iso) {
+  const min=Math.round((Date.now()-new Date(iso))/60000);
+  if(min<1) return 'just now';
+  if(min<60) return min+' min ago';
+  if(min<1440) return Math.round(min/60)+' h ago';
+  return new Date(iso).toLocaleDateString('en-GB',{timeZone:'Europe/Helsinki',day:'numeric',month:'short'});
+}
 function duration(s) {
   const m=Math.round(s/60);
   return m<60?m+' min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';
@@ -143,6 +150,10 @@ function render() {
   $('rate-label').textContent=hasRate?'detection-minutes per listening hour':'';
   $('station-detections').textContent=row?fmt(row.detections):'–';
   $('station-listened').textContent=row?.listening_s?duration(row.listening_s):'–';
+  // Air temperature: the station's latest Modulino Thermo reading, with its age so a stale value is obvious.
+  const t=station?.temperature_c;
+  $('station-temp').textContent=t==null?'–':t.toFixed(1)+' °C';
+  $('station-temp-at').textContent=t==null?'':ago(station.temperature_at);
   // Only explain when the number needs a caveat: no listening is "no data", never zero birds.
   $('station-info').textContent=!station?'':!hasRate?(row?.listening_s>0?'Not enough listening yet for a rate (under 1 minute).':'No listening in this period, so no data. That is not zero birds.')
     :row.low_effort?'Low listening effort (under 15 min): treat this rate with caution.':'';

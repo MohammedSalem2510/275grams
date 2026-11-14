@@ -298,7 +298,8 @@ input { accent-color: var(--accent); }
 .badge.status-inactive, .badge.status-simulated { color: var(--ink-2); background: var(--paper); border: 1px dashed var(--rule-strong); }
 .station-hero { display: flex; align-items: baseline; gap: 10px; margin: 10px 0 6px; }
 #rate { display: block; margin: 0; font: 500 30px/1 var(--mono); letter-spacing: -0.03em; color: var(--ink); }
-.station-stats { display: flex; gap: 24px; }
+.station-stats { display: flex; gap: 20px; }
+.stat-sub { font-size: 10.5px; line-height: 1.2; color: var(--ink-3); }
 .station-stats .stat { display: grid; gap: 1px; }
 #station-info { margin: 8px 0 0; font-size: 11.5px; color: var(--ink-2); }
 #station-info:empty { display: none; }
@@ -371,8 +372,13 @@ input { accent-color: var(--accent); }
 .spark .recent { fill: var(--critical); }
 .warn-none { margin: 0; font-size: 12px; color: var(--ink-2); }
 .alerts-how { margin-top: 6px; }
-.alerts-how summary { cursor: pointer; font-size: 11px; color: var(--ink-3); }
-.alerts-how p { margin: 6px 0 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+.alerts-how summary { cursor: pointer; width: max-content; font-size: 11.5px; color: var(--accent); }
+.alerts-how summary:hover { text-decoration: underline; }
+.alerts-how p { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.alerts-how ul { margin: 6px 0 0; padding-left: 16px; font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.alerts-how strong { font-weight: 600; color: var(--ink); }
+.warn-temp { width: max-content; margin-top: 3px; padding: 1px 6px; border-radius: 3px; background: var(--paper);
+  font: 500 10.5px/1.4 var(--mono); color: var(--ink-2); }
 
 /* ---------- Narrow screens: stack, map first ---------- */
 @media (max-width: 900px) {

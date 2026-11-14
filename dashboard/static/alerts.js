@@ -91,6 +91,11 @@
     text.append(el('span', 'warn-species', name),
                 el('span', 'warn-station', (st.name || a.station_id).replace(/\s*\(simulated\)$/i, '')
                   + (st.simulated ? ' · simulated' : '')));
+    // Weather context shown only when it could explain the drop (a 3 °C or larger shift).
+    if (a.recent_temp_c != null && a.baseline_temp_c != null && Math.abs(a.recent_temp_c - a.baseline_temp_c) >= 3) {
+      const d = a.recent_temp_c - a.baseline_temp_c;
+      text.append(el('span', 'warn-temp', `${Math.abs(d).toFixed(1)} °C ${d < 0 ? 'colder' : 'warmer'} than before`));
+    }
     const fig = el('span', 'warn-fig');
     fig.append(el('span', 'warn-drop', '−' + pct + '%'));
     try {
@@ -112,11 +117,18 @@
       const body = alerts.length ? await Promise.all(alerts.map(row))
         : [el('p', 'warn-none', 'No declines flagged.')];
       const how = el('details', 'alerts-how');
-      how.append(el('summary', null, 'Changes in detected activity, not population loss · how it works'),
-        el('p', null, 'Each station is compared with itself: the last 2 weeks against the 6 before. A species is '
-          + 'flagged when its rate drops by at least 30 %, there is enough listening (5 h recent, 15 h baseline), '
-          + 'and the drop is statistically significant (Poisson test, p < 0.01). It is a change in detected '
-          + 'activity worth investigating, not confirmed population loss: migration and weather can cause it too.'));
+      const list = el('ul');
+      [['A drop of at least 30 %', 'in how often the species is detected'],
+       ['Enough listening', '5 h in the last two weeks, 15 h in the six before'],
+       ['Unlikely to be chance', 'Poisson test, p < 0.01']].forEach(([term, text]) => {
+        const li = el('li');
+        li.append(el('strong', null, term), document.createTextNode(': ' + text));
+        list.append(li);
+      });
+      how.append(el('summary', null, 'Learn more'),
+        el('p', null, 'Each station is compared only with itself: its last two weeks against the six weeks before. A species is flagged when all three hold:'),
+        list,
+        el('p', null, 'An alert is a reason to look closer, not proof of population loss. Migration, weather or a moved microphone can cause the same change.'));
       const wasOpen = panel.querySelector('.alerts-how')?.open;
       how.open = !!wasOpen;
       panel.replaceChildren(head, ...body, how);

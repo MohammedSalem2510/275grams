@@ -148,6 +148,11 @@ def ingest(windows: list[Window]):
 def stations():
     with db() as c:
         last = dict(c.execute("SELECT station_id, MAX(received_utc) FROM windows GROUP BY station_id").fetchall())
+        # Latest Modulino Thermo reading per station (protocol/http.md)
+        temps = {r[0]: (r[1], r[2]) for r in c.execute(
+            "SELECT w.station_id, w.temperature_c, w.start_utc FROM windows w JOIN "
+            "(SELECT station_id, MAX(start_utc) AS m FROM windows WHERE temperature_c IS NOT NULL GROUP BY station_id) t "
+            "ON w.station_id = t.station_id AND w.start_utc = t.m WHERE w.temperature_c IS NOT NULL")}
     now = datetime.now(timezone.utc)
     out = []
     for s in STATIONS:
@@ -159,7 +164,8 @@ def stations():
         else:
             age = (now - datetime.strptime(seen, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=timezone.utc)).total_seconds()
             status = "online" if age <= ONLINE_WITHIN_S else "offline"
-        out.append({**s, "status": status, "last_seen_utc": seen})
+        temp, temp_at = temps.get(s["station_id"], (None, None))
+        out.append({**s, "status": status, "last_seen_utc": seen, "temperature_c": temp, "temperature_at": temp_at})
     return out
 
 
