@@ -3,11 +3,6 @@ secrets.h
 arduino_secrets.h
 .env
 
-# PlatformIO
-.pio/
-.vscode/.browse*
-.vscode/ipch
-
 # Python
 __pycache__/
 *.pyc
