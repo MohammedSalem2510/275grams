@@ -49,7 +49,7 @@ function makePoint(i) {
   const styles = getComputedStyle(document.documentElement);
   const channel = name => styles.getPropertyValue(name).trim().slice(1).match(/../g).map(hex=>parseInt(hex,16));
   const low=channel('--low'), high=channel('--high');
-  const colour=value==null?'#eef0ed':'rgb('+low.map((v,j)=>Math.round(v+(high[j]-v)*Math.min(1,value/24))).join(',')+')';
+  const colour=value==null?'#eef0ed':'rgb('+low.map((v,j)=>Math.round(v+(high[j]-v)*Math.min(1,value/(window.CHIRP_SCALE_MAX||24)))).join(',')+')';
   const pin=document.createElement('button');
   pin.className='pin';
   pin.style.setProperty('--point',colour);
@@ -132,7 +132,7 @@ function connectGoogle(key) {
       const target=$('google-map');
       target.hidden=false;
       target.style.cssText='position:absolute;inset:0;visibility:hidden';
-      const map=new maps.Map(target,{center:{lat:60.1856,lng:24.8320},zoom:13,mapTypeId:'terrain',streetViewControl:false,mapTypeControl:false,fullscreenControl:false});
+      const map=new maps.Map(target,{center:{lat:60.1856,lng:24.8320},zoom:13,mapTypeId:'terrain',streetViewControl:false,mapTypeControl:false,fullscreenControl:false,...(window.CHIRP_MAP_OPTIONS||{})});
       overlay=new class extends maps.OverlayView {
         onAdd() {
           this.root=document.createElement('div');

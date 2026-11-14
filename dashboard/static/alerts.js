@@ -9,15 +9,18 @@
 .alert{border-left:4px solid var(--high);padding:8px 12px;margin:10px 0;background:var(--bg);border-radius:0 10px 10px 0}
 .alert strong{font-size:16px}.alert p{margin:3px 0;font-size:13px;color:var(--muted)}
 .trend{display:flex;align-items:flex-end;gap:3px;height:70px;margin-top:8px}
-.trend i{flex:1;background:var(--low);border-radius:3px 3px 0 0;min-height:2px}.trend i.recent{background:var(--high)}.trend i.none{background:none;border:1px dashed var(--border)}
+.trend i{flex:1;background:var(--rule-strong,var(--low));border-radius:2px 2px 0 0;min-height:2px}.trend i.recent{background:var(--critical,var(--high))}.trend i.none{background:none;border:1px dashed var(--border)}
 .trend-axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}`;
   document.head.append(css);
 
   const panel = document.createElement('section');
   panel.className = 'alerts';
   panel.setAttribute('aria-label', 'Early warnings');
+  const slot = document.getElementById('alerts-slot');
   const atlas = document.querySelector('.atlas');
-  (atlas ? atlas.after(panel) : document.querySelector('main').append(panel));
+  if (slot) slot.replaceWith(panel);
+  else if (atlas) atlas.after(panel);
+  else document.body.append(panel);
 
   const common = label => label.slice(label.indexOf('_') + 1);
   const names = {};
@@ -44,7 +47,7 @@
     });
     const axis = document.createElement('div');
     axis.className = 'trend-axis';
-    axis.innerHTML = '<span></span><span>orange = last 2 weeks · dashed = no data</span><span></span>';
+    axis.innerHTML = '<span></span><span>red = last 2 weeks · dashed = no data</span><span></span>';
     axis.firstChild.textContent = weeks[0].week_start.slice(0, 10);
     axis.lastChild.textContent = 'now';
     return [bars, axis];
