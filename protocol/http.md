@@ -61,3 +61,5 @@ Evidence is kept on the laptop in `dashboard/evidence/` (gitignored), never in g
 Missing listening never counts as a decline. These are *changes in detected activity worth investigating*, not confirmed population loss. A real deployment should compare against the same season in earlier years, so migration isn't mistaken for decline.
 
 Species values are full BirdNET labels (`Scientific name_Common Name`). Split on the first `_` for display.
+
+`GET /api/hourly-activity` accepts a required `station_id` and `species` and optional `start` (inclusive) and `end` (exclusive) window-start filters. It returns 24 Europe/Helsinki clock-hour bins with `hour`, `listening_s`, `detection_minutes`, and `rate_per_hour`. Assign each window to its starting hour and count distinct UTC minutes containing the species. Pool effort across dates before calculating the rate. Below 60 seconds of effort the rate is null.
