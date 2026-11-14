@@ -27,3 +27,6 @@ data/
 # OS
 .DS_Store
 Thumbs.db
+
+# Dashboard database (laptop-local)
+dashboard/chirp.db

@@ -1,8 +1,14 @@
-"""UNO Q Linux side: camera mic -> BirdNET -> MCU over Bridge. No MQTT until after demo-v1."""
+"""UNO Q Linux side: camera mic -> BirdNET -> MCU over Bridge, and every window -> laptop backend."""
 import json
 import os
+import queue
 import subprocess
 import threading
+import time
+import urllib.error
+import urllib.request
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from arduino.app_utils import App, Bridge
@@ -15,6 +21,12 @@ from bird_audio import WINDOW_BYTES, predict
 
 MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
 THRESHOLD = 0.5
+MODEL_VERSION = "BirdNET_GLOBAL_6K_V2.4"
+STATION_ID = os.environ.get("CHIRP_STATION", "chirp-1")
+# Laptop running dashboard/server.py. Venue DHCP can change it: update and redeploy.
+SERVER = os.environ.get("CHIRP_SERVER", "http://10.0.39.120:8000")
+
+outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the laptop is away
 
 
 # Common Finnish species, by BirdNET scientific name (label = "Scientific_Common").
@@ -52,14 +64,53 @@ def listen():
         analysed = 0
         for p in predict(lambda: mic.stdout.read(WINDOW_BYTES), MODEL_DIR, None, THRESHOLD):
             analysed += 1  # every analysed window counts as 3 s of listening, detection or not
-            if accept(p):
+            ok = accept(p)
+            if ok:
                 print(json.dumps(p), flush=True)
                 Bridge.call("bird_detected")
             elif analysed % 20 == 0:
-                print(f"[chirp] {analysed * 3} s analysed, last inference {p['inference_s']} s", flush=True)
+                print(f"[chirp] {analysed * 3} s analysed, last inference {p['inference_s']} s, "
+                      f"{outbox.qsize()} awaiting upload", flush=True)
+            # Window ended just before inference started; approximate its start from that.
+            start = datetime.fromtimestamp(time.time() - p["inference_s"] - 3, timezone.utc)
+            window = {"window_id": uuid.uuid4().hex, "station_id": STATION_ID,
+                      "start": start.isoformat(), "duration_s": 3.0, "model_version": MODEL_VERSION,
+                      "detections": [{"species": p["species"], "score": p["score"]}] if ok else []}
+            try:
+                outbox.put_nowait(window)
+            except queue.Full:
+                print("[chirp] outbox full, window not uploaded", flush=True)
         print(f"[chirp] mic stopped (arecord exit {mic.poll()})", flush=True)
 
 
-# App.run() owns the main thread; inference runs alongside it.
+def upload():
+    """Send windows in batches; on failure keep the batch and retry with the same window_ids."""
+    batch: list = []
+    while True:
+        if not batch:
+            batch.append(outbox.get())
+        while len(batch) < 100:
+            try:
+                batch.append(outbox.get_nowait())
+            except queue.Empty:
+                break
+        req = urllib.request.Request(f"{SERVER}/api/windows", json.dumps(batch).encode(),
+                                     {"Content-Type": "application/json"})
+        try:
+            urllib.request.urlopen(req, timeout=5).read()
+            batch = []
+        except urllib.error.HTTPError as e:
+            if 400 <= e.code < 500:  # the server rejected the data itself; retrying won't help
+                print(f"[chirp] upload rejected ({e.code}: {e.read()[:200]!r}); dropping {len(batch)}", flush=True)
+                batch = []
+            else:
+                time.sleep(5)
+        except OSError as e:  # laptop unreachable: keep the batch, try again
+            print(f"[chirp] upload failed ({e}); retrying {len(batch)} windows", flush=True)
+            time.sleep(5)
+
+
+# App.run() owns the main thread; inference and upload run alongside it.
 threading.Thread(target=listen, daemon=True).start()
+threading.Thread(target=upload, daemon=True).start()
 App.run()

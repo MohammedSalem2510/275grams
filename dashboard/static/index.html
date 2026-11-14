@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chirp backend check</title>
+<!-- Placeholder so the backend can be checked end to end. Seun's map replaces this file. -->
+<style>body{font:15px system-ui,sans-serif;margin:24px;max-width:900px}table{border-collapse:collapse;width:100%;margin-bottom:24px}td,th{border-bottom:1px solid #ccc;padding:6px;text-align:left}</style>
+<h1>Chirp: backend check</h1>
+<h2>Stations</h2><table id="st"></table>
+<h2>Latest detections</h2><table id="det"></table>
+<script>
+const row = (t, cells, tag = 'td') => { const r = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; r.appendChild(c); }); };
+async function refresh() {
+  const [st, rates, det] = await Promise.all(['/api/stations', '/api/rates', '/api/detections?limit=20'].map(u => fetch(u).then(r => r.json())));
+  const byId = Object.fromEntries(rates.map(r => [r.station_id, r]));
+  const t = document.getElementById('st'); t.replaceChildren(); row(t, ['Station', 'Status', 'Detections', 'Listening', 'Rate / h'], 'th');
+  st.forEach(s => { const r = byId[s.station_id]; row(t, [s.name, s.status, r.detections, (r.listening_s / 60).toFixed(1) + ' min', r.rate_per_hour === null ? 'no data' : r.rate_per_hour.toFixed(1)]); });
+  const d = document.getElementById('det'); d.replaceChildren(); row(d, ['Time (UTC)', 'Station', 'Species', 'Score'], 'th');
+  det.forEach(x => row(d, [x.start.slice(11, 19), x.station_id, x.species.split('_').slice(1).join('_'), x.score.toFixed(2)]));
+}
+refresh(); setInterval(refresh, 3000);
+</script></html>

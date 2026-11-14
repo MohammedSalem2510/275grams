@@ -1,0 +1,5 @@
+[
+  {"station_id": "chirp-1", "name": "Otaniemi shore (live UNO Q)", "lat": 60.1856, "lon": 24.8320, "sensors": ["audio"], "simulated": false},
+  {"station_id": "sim-2", "name": "Keilaniemi woods (simulated)", "lat": 60.1770, "lon": 24.8290, "sensors": ["audio"], "simulated": true},
+  {"station_id": "sim-3", "name": "Laajalahti reeds (simulated)", "lat": 60.1915, "lon": 24.8090, "sensors": ["audio"], "simulated": true}
+]
