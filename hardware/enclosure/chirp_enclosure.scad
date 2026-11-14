@@ -16,7 +16,8 @@ wall = 1.6;            // 4 perimeters at 0.4 mm nozzle (was 2.4; cut for the 4 
 floor_t = 1.6;
 clr = 1.0;             // clearance around every part; raise if the first print is tight
 lid_t = 2.0;           // 0.8 mm label engraving leaves 1.2 mm under the text
-lip = 4.0;             // depth of the lid's locating lip
+lip = 0;               // locating lip depth. 0 = flat underside, prints top-up with no supports (the 4 corner
+                       // screws locate the lid). A lip > 0 hangs under the plate and needs supports.
 fit = 0.4;             // lid-lip to wall gap
 $fn = 40;
 
@@ -110,8 +111,8 @@ module lid() {
   difference() {
     union() {
       rounded_box([outer[0], outer[1], lid_t]);
-      // locating lip that drops inside the walls
-      difference() {
+      // optional locating lip that drops inside the walls (off by default: needs supports)
+      if (lip > 0) difference() {
         translate([wall + fit, wall + fit, -lip]) difference() {
           cube([inner[0] - 2 * fit, inner[1] - 2 * fit, lip]);
           translate([2, 2, -1]) cube([inner[0] - 2 * fit - 4, inner[1] - 2 * fit - 4, lip + 2]);
@@ -167,7 +168,7 @@ module shield() {
 // ---------------- LAYOUT ----------------
 if (part == "base") base();
 else if (part == "fit_test") intersection() { base(); cube([outer[0], outer[1], floor_t + standoff_h]); }  // quick check of UNO holes + layout
-else if (part == "lid") translate([0, 0, lid_t]) rotate([180, 0, 0]) translate([0, -outer[1], 0]) lid();  // print upside down
+else if (part == "lid") lid();  // print top face up: flat underside on the bed; mast, bosses and label grow upwards
 else if (part == "shield") translate([0, 0, shield[2]]) rotate([180, 0, 0]) translate([0, -shield[1], 0]) shield();  // roof on the bed
 else if (part == "all") {
   base();

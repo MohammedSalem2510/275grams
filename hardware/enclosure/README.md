@@ -5,11 +5,11 @@ Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Out
 | File | Part | Print orientation |
 |---|---|---|
 | `base.stl` | Tray: UNO Q standoffs, power-bank bay, hub rail, side vents, strap slots, charging notch | As exported, floor on the bed |
-| `lid.stl` | Camera clamp mast, Knob + Buzzer mounts with Qwiic slots, camera cable slot, locating lip | As exported, already flipped (top face on the bed) |
+| `lid.stl` | Camera clamp mast, Knob + Buzzer mounts with Qwiic slots, camera cable slot | As exported: **top face up**, flat underside on the bed |
 | `shield.stl` | Louvred radiation shield for Modulino Thermo | As exported, roof on the bed |
 | `fit_test.stl` | **Print this first:** just the floor, UNO Q posts and rails, a few mm tall | As exported |
 
-**Suggested settings:** PLA or PETG (PETG for outdoor use), **0.28 mm layers, 4 walls, 15 % infill, no supports**. Walls and floor are 1.6 mm (exactly 4 perimeters at a 0.4 mm nozzle) and the lid is 2 mm, cut from 2.4 / 2.4 / 3 mm to fit the print lab's 4 h limit: base + lid + shield went from 255 to 177 cm³ of plastic (−30 %). The interior is unchanged, so everything still fits.
+**Suggested settings:** PLA or PETG (PETG for outdoor use), **0.28 mm layers, 4 walls, 15 % infill, no supports**. Walls and floor are 1.6 mm (exactly 4 perimeters at a 0.4 mm nozzle) and the lid is 2 mm, cut from 2.4 / 2.4 / 3 mm to fit the print lab's 4 h limit: base + lid + shield went from 255 to 173 cm³ of plastic (−32 %). The interior is unchanged, so everything still fits.
 
 ## Before printing
 - **Print `fit_test.stl` first.** It's the base's floor, posts and rails only. Lay the UNO Q on its posts, and the power bank and hub in their places. The model uses the standard UNO R3 hole pattern; if the holes don't line up, adjust `uno_holes` and export again.
@@ -20,7 +20,7 @@ Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Out
 1. **Power bank** (Anker A1259) goes flat in the left bay; its cable leaves through the front-left notch for charging.
 2. **UNO Q** screws onto the four standoffs (M3 or M2.5 self-tapping), USB-C edge facing the back.
 3. **Hub** lies on its rail with **USB-C power (PD) facing forward** into the front plug gap and **USB-A (camera) facing back** into the rear plug gap. Its ports are on opposite long sides, so `hub_back_room = 32`; set it to 0 for a hub whose used ports share one side. Its cable loops to the UNO Q's USB-C.
-4. **Lid:** Knob and Buzzer screw onto their bosses; their Qwiic cables drop through the slots underneath. Four M3 screws hold the lid to the corner bosses.
+4. **Lid:** Knob and Buzzer screw onto their bosses; their Qwiic cables drop through the slots underneath. Four M3 screws hold and locate the lid on the corner bosses.
 5. **Camera** clamps onto the lid's mast; its USB cable goes through the slot beside it to the hub. Pull a sock or foam over the camera as a windshield.
 6. **Thermo** screws into the shield. The shield bolts to the base's right wall (two M3), with its Qwiic cable through the wall slot. Keeping it shaded and ventilated means it reads the air, not the sun or the electronics.
 7. **Mount:** thread a velcro strap or zip ties through the back slots and round a tree trunk.
@@ -34,7 +34,8 @@ openscad -D 'part="shield"' -o shield.stl chirp_enclosure.scad
 
 ## Checks done
 - Every part renders as a single solid (no loose posts).
-- Interference checks in OpenSCAD: the seated lid doesn't overlap the base (its lip is notched round the corner screw posts), and the shield's bolt heads clear the Thermo posts. A control check confirmed the un-notched lid does clash, so the test detects real problems.
+- **No supports needed:** an overhang check on the STLs (downward faces steeper than 45° above the bed) gives 0 mm² for the lid, and only small bridged slot and vent tops for the base (~345 mm²) and the shield (~225 mm²). The earlier lid was exported upside down with a locating lip; it had ~26 000 mm² of overhang (mast and bosses under the plate), which is why the print lab rejected it. The lip is now off (`lip = 0`), because the four corner screws locate the lid. Set `lip = 4` only if you'll print it with supports.
+- The shield's bolt heads clear the Thermo posts (interference check in OpenSCAD).
 - UNO Q holes: the team measured about 5 cm (far pair) and just under 3 cm (near pair) with a ruler, which matches the model's 48.3 mm and 27.9 mm. Confirm on the fit test.
 - A 32 mm plug gap (`plug_room`) sits between the power bank / UNO Q and the hub for USB plugs and cable bends.
 - Not checked: real-world cable routing.
