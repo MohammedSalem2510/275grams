@@ -115,6 +115,8 @@ async function refresh() {
 function googleFallback(message) {
   refreshGoogle=null;
   $('google-map').hidden=true;
+  $('map-view-control').hidden=true;
+  $('map-tilt-control').hidden=true;
   $('sample').hidden=false;
   $('map-status').textContent=message;
 }
@@ -132,7 +134,28 @@ function connectGoogle(key) {
       const target=$('google-map');
       target.hidden=false;
       target.style.cssText='position:absolute;inset:0;visibility:hidden';
-      const map=new maps.Map(target,{center:{lat:60.1856,lng:24.8320},zoom:13,mapTypeId:'terrain',streetViewControl:false,mapTypeControl:false,fullscreenControl:false,...(window.CHIRP_MAP_OPTIONS||{})});
+      const map = new maps.Map(target, {
+        center: { lat: 60.1856, lng: 24.8320 },
+        zoom: 13,
+        streetViewControl: false,
+        mapTypeControl: false,
+        fullscreenControl: false,
+        ...window.CHIRP_MAP_OPTIONS,
+        mapTypeId: $('map-view').value,
+        renderingType: maps.RenderingType.VECTOR,
+        tilt: 0
+      });
+      const tiltToggle = $('map-tilt');
+      const updateTilt = () => {
+        const supportsTilt = map.getRenderingType() === maps.RenderingType.VECTOR;
+        $('map-tilt-control').hidden = failed || $('map-view-control').hidden || !supportsTilt;
+        if (!supportsTilt || failed) return;
+        const zoom = map.getZoom() ?? 13;
+        map.setTilt(tiltToggle.checked ? Math.min(60, Math.max(0, (zoom - 14) * 12)) : 0);
+      };
+      map.addListener('zoom_changed', updateTilt);
+      map.addListener('renderingtype_changed', updateTilt);
+      map.addListener('maptypeid_changed', updateTilt);
       overlay=new class extends maps.OverlayView {
         onAdd() {
           this.root=document.createElement('div');
@@ -164,6 +187,10 @@ function connectGoogle(key) {
         target.style.cssText='';
         $('sample').hidden=true;
         $('map-status').textContent='Google Maps';
+        $('map-view').onchange=()=>map.setMapTypeId($('map-view').value);
+        $('map-view-control').hidden=false;
+        tiltToggle.onchange=updateTilt;
+        updateTilt();
       });
     } catch {fail();}
   };

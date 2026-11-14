@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en" data-theme="forest">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chirp — Bird statistics</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="statistics.css">
+<script src="statistics.js" defer></script>
+</head>
+<body>
+<header><a href="/" aria-label="Chirp map">◉ chirp</a><nav aria-label="Dashboard"><a href="/">Map</a><a href="/statistics.html" aria-current="page">Statistics</a></nav></header>
+<main class="statistics">
+<p class="eyebrow">CHIRP FIELD ATLAS</p>
+<h1>Bird statistics</h1>
+<p class="intro">Compare detected bird activity, listening effort and changes over time.</p>
+<section class="atlas stats-panel" aria-label="Statistics filters">
+<div class="toolbar stats-filters">
+<label>Bird species <select id="species"><option value="">All birds</option></select></label>
+<label>Station <select id="station"><option value="">All stations</option></select></label>
+<label>Period <select id="period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="2016" selected>Last 12 weeks</option><option value="">All time</option></select></label>
+</div>
+<p id="status" role="status">Loading statistics…</p>
+</section>
+<section class="stats-cards" aria-label="Activity summary">
+<div><span>Detection-minutes</span><strong id="total-count">—</strong></div>
+<div><span>Listening hours</span><strong id="total-hours">—</strong></div>
+<div><span>Detection-minutes / hour</span><strong id="total-rate">—</strong></div>
+</section>
+<section class="atlas stats-panel"><h2>Station comparison</h2><div class="table-scroll"><table><thead><tr><th scope="col">Station</th><th scope="col">Status</th><th scope="col">Detection-minutes</th><th scope="col">Hours</th><th scope="col">Rate / hour</th></tr></thead><tbody id="stations"></tbody></table></div></section>
+<section class="atlas stats-panel"><h2>Weekly activity</h2><p class="note">Last 12 weeks · UTC · detection-minutes per listening hour</p><div id="trends"></div></section>
+<section class="atlas stats-panel"><h2>Decline alerts</h2><p class="note">Compares the last two weeks with the previous six. Alerts flag activity for review.</p><ul id="alerts"></ul></section>
+<section class="atlas stats-panel"><h2>Recent detections</h2><p class="note">Up to 200 newest analysed windows matching your filters.</p><div class="table-scroll"><table><thead><tr><th scope="col">Time (UTC)</th><th scope="col">Bird species</th><th scope="col">Station</th><th scope="col">Model score</th></tr></thead><tbody id="detections"></tbody></table></div></section>
+<p class="note">A detection-minute counts a species once per minute at each station. These readings measure acoustic activity. Simulated stations are labelled throughout.</p>
+</main>
+</body>
+</html>
