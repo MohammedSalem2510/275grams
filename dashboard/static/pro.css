@@ -15,12 +15,10 @@
   --accent: #b2d4b2;
   --accent-ink: #3f6f3f;
   /* read by app.js for pin colours: sequential single hue, light -> dark */
-  /* Activity ramp (pins, rate rings, legend): one hue, light -> dark, lavender -> deep violet.
-     Not green: green pins vanish over forest on satellite (worst OKLab dE 1.5). Purple stands out from
-     forest, water and pale land (worst dE 9.9, the best of blue/purple/magenta/orange) and keeps data
-     visually separate from the green interface. Lightness falls steadily 0.86 -> 0.37. */
-  --low: #d9c7f2;
-  --high: #4b1d8f;
+  /* Activity ramp (pins, rate rings, legend): sequential blue, light -> dark. Stands out from forest,
+     water and pale land on both basemaps (green pins vanished over forest). */
+  --low: #b7d3f6;
+  --high: #104281;
   --good: #0ca30c;
   --critical: #d03b3b;
   /* names style.css still uses */
@@ -174,8 +172,7 @@ body.atlas-page {
   position: absolute;
   inset: -7px;
   border-radius: 50%;
-  border: 2px solid var(--ink);  /* not green: it must stand out from a green pin */
-  box-shadow: 0 0 0 1px #fff;     /* thin white edge so it also shows on dark satellite imagery */
+  border: 2px solid var(--good);
   animation: pulse 2.4s ease-out infinite;
 }
 @keyframes pulse {
@@ -229,7 +226,7 @@ body.atlas-page {
 }
 .keys li { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
 .keys b { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-.k-live { background: var(--high); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--ink); }
+.k-live { background: var(--high); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--good); }
 .k-sim { background: var(--high) repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0 2px, transparent 2px 4px); }
 .k-nodata { border: 2px dashed var(--ink-3); background: var(--surface); }
 
