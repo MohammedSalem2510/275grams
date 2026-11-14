@@ -1,4 +1,5 @@
 """UNO Q Linux side: camera mic -> BirdNET -> MCU over Bridge, and every window -> laptop backend."""
+import io
 import json
 import os
 import queue
@@ -33,6 +34,48 @@ SERVER = (os.environ.get("CHIRP_SERVER")
           or "http://10.0.39.120:8000")
 
 outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the laptop is away
+
+# Audio evidence: the 3 s WAV of each accepted detection, PUT after its window is uploaded.
+# Only accepted windows (never speech) are kept, at most EVIDENCE_MAX (~29 MB), oldest dropped first.
+EVIDENCE_MAX = 100
+evidence: dict[str, bytes] = {}
+evidence_lock = threading.Lock()
+
+
+def wav_bytes(raw: bytes) -> bytes:
+    buf = io.BytesIO()
+    with wave.open(buf, "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(48000)
+        w.writeframes(raw)
+    return buf.getvalue()
+
+
+def keep_evidence(window_id: str, raw: bytes):
+    with evidence_lock:
+        evidence[window_id] = wav_bytes(raw)
+        while len(evidence) > EVIDENCE_MAX:
+            evidence.pop(next(iter(evidence)))  # dicts keep insertion order: oldest first
+
+
+def send_evidence():
+    """Called after a successful window upload. 404 means its window isn't stored yet: keep it."""
+    with evidence_lock:
+        pending = list(evidence.items())
+    for window_id, wav in pending:
+        req = urllib.request.Request(f"{SERVER}/api/evidence/{window_id}", wav,
+                                     {"Content-Type": "audio/wav"}, method="PUT")
+        try:
+            urllib.request.urlopen(req, timeout=10).read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                continue
+            print(f"[chirp] evidence rejected ({e.code}); dropping {window_id}", flush=True)
+        except OSError:
+            return  # laptop unreachable: everything stays for the next round
+        with evidence_lock:
+            evidence.pop(window_id, None)
 
 
 # Every regularly occurring Finnish bird BirdNET knows (269), as exact BirdNET labels.
@@ -163,7 +206,10 @@ def listen():
                 if "Human" in p["top"] and p["score"] >= SPEECH_SCORE:
                     recorder.mark_speech()  # ...so the file holding this window is the one purged
                     clip, offset = None, None
-            window = {"window_id": uuid.uuid4().hex, "station_id": STATION_ID,
+            window_id = uuid.uuid4().hex
+            if ok:
+                keep_evidence(window_id, last_raw[0])
+            window = {"window_id": window_id, "station_id": STATION_ID,
                       "start": start.isoformat(), "duration_s": 3.0, "model_version": MODEL_VERSION,
                       "detections": [{"species": p["species"], "score": p["score"]}] if ok else [],
                       "temperature_c": mcu["temperature_c"], "duty": mcu["duty"],
@@ -193,6 +239,7 @@ def upload():
         try:
             urllib.request.urlopen(req, timeout=5).read()
             batch = []
+            send_evidence()
         except urllib.error.HTTPError as e:
             if 400 <= e.code < 500:  # the server rejected the data itself; retrying won't help
                 print(f"[chirp] upload rejected ({e.code}: {e.read()[:200]!r}); dropping {len(batch)}", flush=True)
