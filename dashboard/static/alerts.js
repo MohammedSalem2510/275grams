@@ -1,18 +1,9 @@
 'use strict';
-// Early-warning panel: /api/alerts + a weekly trend chart per alert. Self-contained so
-// app.js (the map) stays untouched; it only reuses style.css variables.
+// Early-warning panel: /api/alerts, one card per alert with a hero number and a 12-week
+// trend. Self-contained so app.js (the map) stays untouched; styles live in pro.css.
+// Honesty: a flagged change is "detected activity worth investigating", never population loss;
+// weeks without listening are gaps, never zeros; simulated stations are labelled.
 (() => {
-  const css = document.createElement('style');
-  css.textContent = `
-.alerts{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px 16px;margin-top:12px}
-.alerts h2{display:flex;align-items:center;gap:8px}.alerts .count{background:var(--high);color:#fff;border-radius:999px;padding:1px 9px;font-size:13px}
-.alert{border-left:4px solid var(--high);padding:8px 12px;margin:10px 0;background:var(--bg);border-radius:0 10px 10px 0}
-.alert strong{font-size:16px}.alert p{margin:3px 0;font-size:13px;color:var(--muted)}
-.trend{display:flex;align-items:flex-end;gap:3px;height:70px;margin-top:8px}
-.trend i{flex:1;background:var(--rule-strong,var(--low));border-radius:2px 2px 0 0;min-height:2px}.trend i.recent{background:var(--critical,var(--high))}.trend i.none{background:none;border:1px dashed var(--border)}
-.trend-axis{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}`;
-  document.head.append(css);
-
   const panel = document.createElement('section');
   panel.className = 'alerts';
   panel.setAttribute('aria-label', 'Early warnings');
@@ -22,9 +13,19 @@
   else if (atlas) atlas.after(panel);
   else document.body.append(panel);
 
+  const RECENT_WEEKS = 2, BASELINE_WEEKS = 6;  // the rule in protocol/http.md
   const common = label => label.slice(label.indexOf('_') + 1);
-  const names = {};
-  const pct = x => Math.round(x * 100) + '%';
+  const stations = {};
+  const el = (tag, cls, text) => {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  const rate = x => x == null ? 'no data' : x.toFixed(x < 10 ? 2 : 1);
+  const hours = s => Math.round(s / 3600) + ' h';
+  const pValue = p => p < 0.001 ? 'p < 0.001' : 'p = ' + p.toFixed(3);
+  const day = iso => new Date(iso).toLocaleDateString('en-GB', {day: 'numeric', month: 'short'});
 
   async function get(path) {
     const r = await fetch(path, {signal: AbortSignal.timeout(8000)});
@@ -32,66 +33,145 @@
     return r.json();
   }
 
-  function chart(weeks) {
-    const max = Math.max(...weeks.map(w => w.rate_per_hour || 0), 0.001);
-    const bars = document.createElement('div');
-    bars.className = 'trend';
+  function weekText(w) {
+    return `Week of ${day(w.week_start)}: ` + (w.rate_per_hour == null
+      ? 'no listening, so no data'
+      : `${rate(w.rate_per_hour)} detection-min/h over ${(w.listening_s / 3600).toFixed(1)} h`);
+  }
+
+  function chart(weeks, baselineRate) {
+    const n = weeks.length;
+    const recentFrom = n - RECENT_WEEKS, baseFrom = n - RECENT_WEEKS - BASELINE_WEEKS;
+    const max = Math.max(baselineRate, ...weeks.map(w => w.rate_per_hour || 0), 0.001) * 1.1;
+    const wrap = el('figure', 'trend');
+    const plot = el('div', 'trend-plot');
+    plot.style.setProperty('--n', n);
+    const caption = el('figcaption', 'trend-caption', 'Hover a week for its figures.');
+    const reset = () => { caption.textContent = 'Hover a week for its figures.'; };
+
+    const line = el('div', 'trend-baseline');
+    line.style.bottom = (100 * baselineRate / max) + '%';
+    line.append(el('span', null, `baseline ${rate(baselineRate)}/h`));
+    plot.append(line);
+
     weeks.forEach((w, i) => {
-      const bar = document.createElement('i');
-      if (w.rate_per_hour === null) bar.className = 'none';  // no listening: a gap, never a zero
-      else if (i >= weeks.length - 2) bar.className = 'recent';
-      bar.style.height = w.rate_per_hour === null ? '100%' : (100 * w.rate_per_hour / max) + '%';
-      bar.title = w.week_start.slice(0, 10) + ': ' + (w.rate_per_hour === null ? 'no data'
-        : w.rate_per_hour.toFixed(2) + ' detection-min/h over ' + (w.listening_s / 3600).toFixed(1) + ' h');
-      bars.append(bar);
+      const bar = el('button', 'bar');
+      bar.type = 'button';
+      if (w.rate_per_hour == null) bar.classList.add('none');
+      else if (i >= recentFrom) bar.classList.add('recent');
+      bar.style.height = w.rate_per_hour == null ? '100%' : Math.max(2, 100 * w.rate_per_hour / max) + '%';
+      bar.setAttribute('aria-label', weekText(w));
+      const show = () => { caption.textContent = weekText(w); };
+      bar.addEventListener('mouseenter', show);
+      bar.addEventListener('focus', show);
+      bar.addEventListener('mouseleave', reset);
+      bar.addEventListener('blur', reset);
+      plot.append(bar);
     });
-    const axis = document.createElement('div');
-    axis.className = 'trend-axis';
-    axis.innerHTML = '<span></span><span>red = last 2 weeks · dashed = no data</span><span></span>';
-    axis.firstChild.textContent = weeks[0].week_start.slice(0, 10);
-    axis.lastChild.textContent = 'now';
-    return [bars, axis];
+
+    // Labelled windows under the bars, so the comparison never relies on colour alone.
+    const windows = el('div', 'trend-windows');
+    windows.style.setProperty('--n', n);
+    const span = (cls, text, from, count) => {
+      const s = el('span', cls, text);
+      s.style.gridColumn = `${from + 1} / span ${count}`;
+      return s;
+    };
+    if (baseFrom >= 0) windows.append(span('win', `baseline · ${BASELINE_WEEKS} wk`, baseFrom, BASELINE_WEEKS));
+    windows.append(span('win recent', `recent · ${RECENT_WEEKS} wk`, recentFrom, RECENT_WEEKS));
+
+    const axis = el('div', 'trend-axis');
+    axis.append(el('span', null, day(weeks[0].week_start)), el('span', null, 'now'));
+    wrap.append(plot, windows, axis, caption);
+    return wrap;
+  }
+
+  function table(weeks) {
+    const t = el('table', 'trend-table');
+    const head = t.createTHead().insertRow();
+    ['Week of', 'Rate /h', 'Listening'].forEach(h => head.append(el('th', null, h)));
+    const body = t.createTBody();
+    weeks.forEach(w => {
+      const row = body.insertRow();
+      row.append(el('td', null, day(w.week_start)), el('td', null, rate(w.rate_per_hour)),
+                 el('td', null, (w.listening_s / 3600).toFixed(1) + ' h'));
+    });
+    return t;
+  }
+
+  async function card(a) {
+    const st = stations[a.station_id] || {};
+    const box = el('article', 'alert');
+    box.dataset.key = a.station_id + '|' + a.species;
+
+    const top = el('div', 'alert-top');
+    const badge = el('span', 'badge critical', 'Decline');
+    badge.prepend(el('span', 'badge-icon', '▼ '));
+    top.append(badge);
+    if (st.simulated) top.append(el('span', 'badge sim', 'Simulated data'));
+    box.append(top);
+
+    box.append(el('h3', 'alert-species', common(a.species)));
+    box.append(el('p', 'alert-station', st.name || a.station_id));
+
+    const hero = el('div', 'alert-hero');
+    hero.append(el('span', 'hero-num', '−' + Math.round(a.drop * 100) + '%'),
+                el('span', 'hero-label', `detected activity, last ${RECENT_WEEKS} weeks vs the ${BASELINE_WEEKS} before`));
+    box.append(hero);
+
+    const rates = el('div', 'alert-rates');
+    const stat = (label, value, cls) => {
+      const s = el('div', 'stat' + (cls ? ' ' + cls : ''));
+      s.append(el('span', 'stat-label', label), el('span', 'stat-value', `${rate(value)} /h`));
+      return s;
+    };
+    rates.append(stat('Baseline', a.baseline_rate), el('span', 'arrow', '→'), stat('Recent', a.recent_rate, 'recent'));
+    box.append(rates);
+
+    let weeks = null;
+    try {
+      const q = new URLSearchParams({station_id: a.station_id, species: a.species, weeks: 12});
+      weeks = await get('/api/trends?' + q);
+      if (weeks.length) box.append(chart(weeks, a.baseline_rate));
+    } catch { /* the chart is optional; the numbers above still stand */ }
+
+    const meta = el('p', 'alert-meta');
+    meta.textContent = `Listening ${hours(a.recent_listening_s)} recent vs ${hours(a.baseline_listening_s)} baseline · ${pValue(a.p_value)}`;
+    box.append(meta);
+    if (a.recent_temp_c != null && a.baseline_temp_c != null) {
+      const diff = a.recent_temp_c - a.baseline_temp_c;
+      const ctx = el('p', 'alert-meta');
+      ctx.textContent = `${a.recent_temp_c.toFixed(1)} °C recent vs ${a.baseline_temp_c.toFixed(1)} °C baseline`
+        + (Math.abs(diff) >= 3 ? ` · ${Math.abs(diff).toFixed(1)} °C ${diff < 0 ? 'colder' : 'warmer'}, so weather may explain part of this.` : '');
+      box.append(ctx);
+    }
+
+    const more = el('details', 'alert-more');
+    more.append(el('summary', null, 'How this is flagged · weekly data'));
+    more.append(el('p', null, `Flagged when the rate drops by at least 30 %, with at least 5 h of listening recently `
+      + `and 15 h in the baseline, at least 30 baseline detection-minutes, and a Poisson test at p < 0.01. `
+      + `It is a change in detected activity worth investigating, not confirmed population loss; `
+      + `migration and weather can cause it too.`));
+    if (weeks && weeks.length) more.append(table(weeks));
+    box.append(more);
+    return box;
   }
 
   async function refresh() {
     try {
-      if (!Object.keys(names).length) (await get('/api/stations')).forEach(s => names[s.station_id] = s.name);
+      if (!Object.keys(stations).length) (await get('/api/stations')).forEach(s => stations[s.station_id] = s);
       const alerts = await get('/api/alerts');
-      const head = document.createElement('h2');
-      head.textContent = 'Early warnings ';
-      const count = document.createElement('span');
-      count.className = 'count';
-      count.textContent = alerts.length;
-      if (alerts.length) head.append(count);
-      const note = document.createElement('p');
-      note.className = 'note';
-      note.textContent = alerts.length
-        ? 'Changes in detected activity worth investigating: not confirmed population loss.'
-        : 'No significant declines. Each station is compared with its own previous 6 weeks.';
-      const items = await Promise.all(alerts.map(async a => {
-        const box = document.createElement('div');
-        box.className = 'alert';
-        const title = document.createElement('strong');
-        title.textContent = `⚠ ${common(a.species)} down ${pct(a.drop)} at ${names[a.station_id] || a.station_id}`;
-        const detail = document.createElement('p');
-        detail.textContent = `${a.recent_rate}/h in the last 2 weeks vs ${a.baseline_rate}/h baseline · `
-          + `${(a.recent_listening_s / 3600).toFixed(0)} h vs ${(a.baseline_listening_s / 3600).toFixed(0)} h listening · `
-          + `p = ${a.p_value.toExponential(1)}`;
-        box.append(title, detail);
-        if (a.recent_temp_c !== null && a.baseline_temp_c !== null) {
-          const diff = a.recent_temp_c - a.baseline_temp_c;
-          const ctx = document.createElement('p');
-          ctx.textContent = `Context: ${a.recent_temp_c.toFixed(1)} °C recently vs ${a.baseline_temp_c.toFixed(1)} °C baseline`
-            + (Math.abs(diff) >= 3 ? ` · ${Math.abs(diff).toFixed(1)} °C ${diff < 0 ? 'colder' : 'warmer'}: weather may explain part of this change.` : '.');
-          box.append(ctx);
-        }
-        try {
-          const q = new URLSearchParams({station_id: a.station_id, species: a.species, weeks: 12});
-          box.append(...chart(await get('/api/trends?' + q)));
-        } catch { /* chart is optional */ }
-        return box;
-      }));
-      panel.replaceChildren(head, note, ...items);
+      const head = el('div', 'alerts-head');
+      head.append(el('p', 'eyebrow', 'Early warning'));
+      if (alerts.length) head.append(el('span', 'count', String(alerts.length)));
+      const items = await Promise.all(alerts.map(card));
+      const note = el('p', 'note', alerts.length
+        ? 'Changes in detected activity worth investigating, not confirmed population loss.'
+        : 'No significant declines. Each station is compared with its own previous 6 weeks.');
+      // The 30 s refresh rebuilds the cards; keep any "How this is flagged" section the reader opened.
+      const open = new Set([...panel.querySelectorAll('.alert-more[open]')].map(d => d.closest('.alert').dataset.key));
+      items.forEach(item => { if (open.has(item.dataset.key)) item.querySelector('.alert-more').open = true; });
+      panel.replaceChildren(head, ...items, note);
     } catch {
       if (!panel.childElementCount) panel.textContent = 'Early warnings unavailable.';
     }
