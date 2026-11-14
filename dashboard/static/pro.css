@@ -15,10 +15,12 @@
   --accent: #b2d4b2;
   --accent-ink: #3f6f3f;
   /* read by app.js for pin colours: sequential single hue, light -> dark */
-  /* Activity ramp: one hue, light -> dark, from the brand pastel to deep forest green.
-     OKLab lightness falls steadily 0.84 -> 0.37 (same range as the old blue ramp). */
-  --low: #b2d4b2;
-  --high: #1f4a24;
+  /* Activity ramp (pins, rate rings, legend): one hue, light -> dark, lavender -> deep violet.
+     Not green: green pins vanish over forest on satellite (worst OKLab dE 1.5). Purple stands out from
+     forest, water and pale land (worst dE 9.9, the best of blue/purple/magenta/orange) and keeps data
+     visually separate from the green interface. Lightness falls steadily 0.86 -> 0.37. */
+  --low: #d9c7f2;
+  --high: #4b1d8f;
   --good: #0ca30c;
   --critical: #d03b3b;
   /* names style.css still uses */
