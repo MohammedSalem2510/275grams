@@ -14,7 +14,7 @@ To change this contract, edit this file in its own `protocol:` commit **before**
   "window_id": "9f1c…",                 // unique per window, made on the board; a retry reuses it
   "station_id": "chirp-1",              // must be a live station in dashboard/stations.json
   "start": "2026-11-14T00:12:03.120Z",
-  "duration_s": 3.0,
+  "duration_s": 1.5,                     // listening time this window adds (see overlap below)
   "model_version": "BirdNET_GLOBAL_6K_V2.4",
   "detections": [{"species": "Fringilla coelebs_Common Chaffinch", "score": 0.97}],  // [] if none accepted
   // optional context (omit or null when unavailable)
@@ -24,10 +24,11 @@ To change this contract, edit this file in its own `protocol:` commit **before**
   "clip_offset_s": 27.0                  // where this window starts inside that clip
 }]
 ```
+Windows overlap: the station analyses 3 s of audio every 1.5 s, so a call on a window boundary isn't cut in half. Each window's `duration_s` is the **new** audio it adds (the 1.5 s hop), not the 3 s analysed, so summed listening time stays real time. `start` is still the start of the 3 s analysed. Detection-minutes count distinct minutes, so overlap never double-counts a call.
 Duty cycling only reduces how many windows are sent; listening time stays the sum of the windows that were actually analysed, so rates remain correct.
 Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-op, so retries never double-count.
 
-`PUT /api/evidence/{window_id}`: the audio evidence for one **accepted detection**. The body is the analysed 3 s window as a WAV file (`Content-Type: audio/wav`, 48 kHz mono 16-bit, at most 1 MB). The station sends it only after the window itself was accepted by `POST /api/windows`. It never sends evidence for a window without a detection, and windows whose top label is human speech are never accepted, so speech is never uploaded.
+`PUT /api/evidence/{window_id}`: the audio evidence for one **accepted detection**. The body is the analysed 3 s window as a WAV file (`Content-Type: audio/wav`, 48 kHz mono 16-bit, at most 1 MB). The station sends it only after the window itself was accepted by `POST /api/windows`. It never sends evidence for a window without a detection, and a window with speech but no listed bird above the threshold is never accepted. A clip of a bird can include people talking in the background.
 - `200 {"stored": true}`: stored. Re-sending overwrites the same file, so retries are safe.
 - `404`: the window is unknown or has no detection (yet). The station keeps the clip and tries again after its next successful window upload.
 - `413` or `422`: too large, or not a WAV file. The station drops the clip.
