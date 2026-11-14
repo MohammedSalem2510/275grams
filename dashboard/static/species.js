@@ -110,6 +110,7 @@
       shownKey = key;
       list.replaceChildren(...(rows.length ? rows.map(card)
         : [el('p', 'note', 'No birds detected here in this period. Silence is not proof of absence.')]));
+      window.chirpPlacePopup?.();  // the popup's height changed
     } catch {
       if (request === version && !list.childElementCount) list.replaceChildren(el('p', 'note', 'Species unavailable.'));
     }

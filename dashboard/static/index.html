@@ -27,6 +27,19 @@
       <div id="sample"><div id="sample-points"></div></div>
       <div id="google-map" hidden></div>
       <span id="map-status" role="status">Station positions</span>
+      <div id="station-popup" class="popup" role="dialog" aria-labelledby="station-name" tabindex="-1" hidden>
+        <button type="button" id="popup-close" class="popup-close" aria-label="Close station details">×</button>
+        <p class="eyebrow">Station</p>
+        <div class="station-head"><h2 id="station-name"></h2><span id="station-status" class="badge"></span></div>
+        <div class="station-hero"><strong id="rate"></strong><span id="rate-label" class="hero-label"></span></div>
+        <div class="station-stats">
+          <div class="stat"><span class="stat-label">Detection-min</span><span id="station-detections" class="stat-value"></span></div>
+          <div class="stat"><span class="stat-label">Listened</span><span id="station-listened" class="stat-value"></span></div>
+        </div>
+        <p id="station-info"></p>
+        <p class="eyebrow popup-section">Species heard here</p>
+        <div id="species-cards"></div>
+      </div>
       <div class="legend" aria-label="Map legend">
         <p class="legend-title">Detection-minutes per listening hour</p>
         <div class="ramp" aria-hidden="true"></div>
@@ -50,26 +63,10 @@
       <label id="map-tilt-control" class="toggle" hidden><input id="map-tilt" type="checkbox" checked> 3D tilt</label>
     </section>
 
-    <section class="card station" aria-label="Selected station">
-      <p class="eyebrow">Selected station</p>
-      <div class="station-head"><h2 id="station-name"></h2><span id="station-status" class="badge"></span></div>
-      <div class="station-hero"><strong id="rate"></strong><span id="rate-label" class="hero-label"></span></div>
-      <div class="station-stats">
-        <div class="stat"><span class="stat-label">Detection-min</span><span id="station-detections" class="stat-value"></span></div>
-        <div class="stat"><span class="stat-label">Listened</span><span id="station-listened" class="stat-value"></span></div>
-      </div>
-      <p id="station-info"></p>
-    </section>
-
-    <section class="card species-card" aria-label="Species heard at this station">
-      <p class="eyebrow">Species heard here</p>
-      <div id="species-cards"></div>
-    </section>
-
     <div id="alerts-slot"></div>
 
     <section class="card detections-card" aria-label="Recent detections">
-      <p class="eyebrow">Recent detections</p>
+      <p class="eyebrow">Recent detections<span id="detections-station"></span></p>
       <ul id="detections"></ul>
     </section>
 

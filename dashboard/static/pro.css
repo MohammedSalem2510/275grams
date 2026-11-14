@@ -301,6 +301,21 @@ input { accent-color: var(--accent); }
 
 .note { margin: 0; padding: 0 2px; font-size: 11px; color: var(--ink-3); }
 
+/* ---------- Station popup on the map (app.js placePopup) ---------- */
+.popup { position: absolute; z-index: 6; width: 340px; max-height: calc(100% - 16px); overflow-y: auto;
+  padding: 14px 16px; background: var(--surface); border: 1px solid var(--rule-strong); border-radius: 6px;
+  box-shadow: 0 8px 28px rgba(22, 32, 27, 0.18); overflow-wrap: anywhere; }
+.popup:focus { outline: none; }
+.popup:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.popup h2 { margin: 0; font: 600 16px/1.3 var(--sans); }
+.popup .station-head { padding-right: 24px; }  /* room for the close button */
+.popup-close { position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 4px; background: none; color: var(--ink-2); font: 400 20px/1 var(--sans); cursor: pointer; }
+.popup-close:hover { background: var(--paper); color: var(--ink); }
+.popup-section { margin: 14px 0 8px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.popup.sheet { left: 8px !important; right: 8px; bottom: 8px; top: auto !important; width: auto; max-height: 60%; }
+#detections-station { text-transform: none; letter-spacing: 0; }
+
 /* ---------- Species heard here (species.js) ---------- */
 #species-cards { display: flex; flex-direction: column; gap: 10px; }
 .sp-card { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 10px; padding-top: 10px;
