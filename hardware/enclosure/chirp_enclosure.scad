@@ -34,6 +34,12 @@ pilot = 2.6;                // self-tapping M3 / M2.5 pilot
 shield_bolt_z = 40;         // above the Thermo board, below the shield roof
 shield_qwiic_z = 22;
 
+/* [Branding] */
+team_name = "275grams";
+label_size = 11;            // cap height, mm
+label_depth = 0.8;          // engraved: prints cleanly face-down, no supports
+label_font = "Liberation Sans:style=Bold";  // bundled with OpenSCAD
+
 /* [Interior layout] */
 gap = 8;
 bank_pos = [0, 0];
@@ -118,6 +124,10 @@ module lid() {
     translate([(outer[0] + mast[0]) / 2 + 6, outer[1] - 24, -lip - 1]) cube([14, 9, lid_t + lip + 2]);
     // Qwiic pass-throughs under each Modulino
     for (at = [knob_at, buzz_at]) translate([at[0] - 6, at[1] - 3, -lip - 1]) cube([12, 6, lid_t + lip + 2]);
+    // team name engraved into the top face, front edge, clear of the Modulinos
+    translate([outer[0] / 2, 22, lid_t - label_depth])
+      linear_extrude(label_depth + 1)
+        text(team_name, size = label_size, font = label_font, halign = "center", valign = "center");
   }
   modulino_mount(knob_at);
   modulino_mount(buzz_at);
