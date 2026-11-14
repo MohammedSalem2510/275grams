@@ -27,13 +27,21 @@ To change this contract, edit this file in its own `protocol:` commit **before**
 Duty cycling only reduces how many windows are sent; listening time stays the sum of the windows that were actually analysed, so rates remain correct.
 Response: `{"inserted": n, "duplicates": m}`. Re-sending a `window_id` is a no-op, so retries never double-count.
 
+`PUT /api/evidence/{window_id}`: the audio evidence for one **accepted detection**. The body is the analysed 3 s window as a WAV file (`Content-Type: audio/wav`, 48 kHz mono 16-bit, at most 1 MB). The station sends it only after the window itself was accepted by `POST /api/windows`. It never sends evidence for a window without a detection, and windows whose top label is human speech are never accepted, so speech is never uploaded.
+- `200 {"stored": true}`: stored. Re-sending overwrites the same file, so retries are safe.
+- `404`: the window is unknown or has no detection (yet). The station keeps the clip and tries again after its next successful window upload.
+- `413` or `422`: too large, or not a WAV file. The station drops the clip.
+
+Evidence is kept on the laptop in `dashboard/evidence/` (gitignored), never in git.
+
 ## Dashboard → backend (read-only)
 
 | Endpoint | Returns |
 |---|---|
 | `GET /api/stations` | Registry plus `status`: `online` (a window received in the last 30 s), `offline`, `inactive` (never reported) or `simulated` |
 | `GET /api/species?start=&end=` | `[{species, detections}]` for the search box |
-| `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score}]` |
+| `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score, evidence}]`. `evidence` is `true` when an audio clip is stored for that window. |
+| `GET /api/evidence/{window_id}` | The window's WAV evidence (`audio/wav`), or `404` if none was uploaded |
 | `GET /api/rates?species=&start=&end=` | One row per station: `{station_id, simulated, detections, listening_s, rate_per_hour, low_effort}`. `rate_per_hour` is **`null` under 60 s of listening (no data)**, which is never shown as zero. `low_effort` is `true` when there's a rate but under 15 min of listening behind it. The map must flag those pins (e.g. hollow or dashed) and show the listening time. |
 | `GET /api/trends?station_id=&species=&weeks=12` | Oldest first, one row per 7-day bin ending now: `{week_start, week_end, detections, listening_s, rate_per_hour, low_effort, temp_c}` |
 | `GET /api/alerts?species=` | Early warnings, worst first: `{station_id, species, drop, recent_rate, baseline_rate, recent_listening_s, baseline_listening_s, p_value, recent_temp_c, baseline_temp_c}`. The temperatures are listening-weighted means, or `null` when unknown. They're context for the reviewer, not a correction. |
