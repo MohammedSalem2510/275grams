@@ -7,7 +7,7 @@ To change this contract, edit this file in its own `protocol:` commit **before**
 
 ## Station → backend
 
-**Hosted dashboard (Railway):** the public site accepts `POST /api/windows` only with an `Authorization: Bearer <station token>` header over HTTPS. Without a configured token it is read-only. It serves observation data but no evidence audio: `PUT`/`GET /api/evidence/...` return 404 and `evidence` is always `false`, because a bird clip can contain background voices. Local dashboards keep the evidence endpoints described below. A wrong or missing token gets `401`; the station keeps the batch and retries.
+**Hosted dashboard (Railway):** the public site accepts `POST /api/windows` only with an `Authorization: Bearer <station token>` header over HTTPS. Without a configured token it is read-only. It also stores and plays evidence audio like a local dashboard: `PUT /api/evidence/{window_id}` needs the same token, and `GET` is public. A bird clip can contain background voices, so the public site may play them. A wrong or missing token gets `401`; the station keeps the batch or clip and retries.
 
 `POST /api/windows`: a JSON array of analysed windows (1–500 per request). The board sends **every** analysed window, including ones with no detection, because the windows are the listening effort.
 
