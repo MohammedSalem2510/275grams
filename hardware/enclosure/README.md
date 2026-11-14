@@ -1,6 +1,6 @@
 # Chirp station enclosure
 
-Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **132 × 143 × 47 mm** (base + lid), so it fits any 220 × 220 mm bed.
+Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Outer size **132 × 175 × 47 mm** (base + lid), so it fits any 220 × 220 mm bed.
 
 | File | Part | Print orientation |
 |---|---|---|
@@ -19,7 +19,7 @@ Parametric OpenSCAD model (`chirp_enclosure.scad`) with ready-to-print STLs. Out
 ## Assembly
 1. **Power bank** (Anker A1259) goes flat in the left bay; its cable leaves through the front-left notch for charging.
 2. **UNO Q** screws onto the four standoffs (M3 or M2.5 self-tapping), USB-C edge facing the back.
-3. **Hub** lies along the back rail; its cable loops to the UNO Q's USB-C.
+3. **Hub** lies along the back rail **with the ports you use facing forward**, into the 32 mm plug gap. Ports facing the back wall have no room for a plug. Its cable loops to the UNO Q's USB-C.
 4. **Lid:** Knob and Buzzer screw onto their bosses; their Qwiic cables drop through the slots underneath. Four M3 screws hold the lid to the corner bosses.
 5. **Camera** clamps onto the lid's mast; its USB cable goes through the slot beside it to the hub. Pull a sock or foam over the camera as a windshield.
 6. **Thermo** screws into the shield. The shield bolts to the base's right wall (two M3), with its Qwiic cable through the wall slot. Keeping it shaded and ventilated means it reads the air, not the sun or the electronics.
@@ -35,4 +35,6 @@ openscad -D 'part="shield"' -o shield.stl chirp_enclosure.scad
 ## Checks done
 - Every part renders as a single solid (no loose posts).
 - Interference checks in OpenSCAD: the seated lid doesn't overlap the base (its lip is notched round the corner screw posts), and the shield's bolt heads clear the Thermo posts. A control check confirmed the un-notched lid does clash, so the test detects real problems.
-- Not checked: the UNO Q hole positions against a real board (use the fit test), and real-world cable routing.
+- UNO Q holes: the team measured about 5 cm (far pair) and just under 3 cm (near pair) with a ruler, which matches the model's 48.3 mm and 27.9 mm. Confirm on the fit test.
+- A 32 mm plug gap (`plug_room`) sits between the power bank / UNO Q and the hub for USB plugs and cable bends.
+- Not checked: real-world cable routing.
