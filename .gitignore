@@ -36,3 +36,6 @@ unoq-app/python/record_audio
 
 # Detection audio evidence (laptop-local)
 dashboard/evidence/
+
+# Cached bird photos (iNaturalist, fetched by the laptop)
+dashboard/photos/

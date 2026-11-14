@@ -53,6 +53,7 @@ async function detections(query) {
   try {
     const rows = await api('detections',query);
     if (request!==detectionVersion || refreshVersion!==version) return;
+    if ([...$('detections').querySelectorAll('audio')].some(a=>!a.paused)) return;  // never cut off a clip mid-play
     items(rows.length ? rows.map(detectionItem) : ['No detections in this selection.']);
   } catch {
     if (request===detectionVersion && refreshVersion===version) items(['Could not load detections.']);
@@ -75,6 +76,7 @@ function makePoint(i) {
     selected=station.station_id;
     render();
     detections(filters());
+    window.chirpSpecies?.show(selected, filters());
   };
   const glow=document.createElement('span');
   glow.className='glow';
@@ -120,6 +122,7 @@ async function refresh() {
     $('species').value=active;
     $('connection').textContent='Updated '+new Date().toLocaleTimeString();
     render();
+    window.chirpSpecies?.show(selected, query);
     await detections(query);
   } catch {
     if(request!==version) return;

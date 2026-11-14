@@ -18,6 +18,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from dashboard import photos
+
 HERE = Path(__file__).resolve().parent
 DB_PATH = HERE / "chirp.db"  # gitignored
 STATIONS = json.loads((HERE / "stations.json").read_text(encoding="utf-8"))
@@ -221,6 +223,42 @@ def get_evidence(window_id: str):
     if not path.exists():
         raise HTTPException(404, "no evidence for this window")
     return FileResponse(path, media_type="audio/wav")
+
+
+@app.get("/api/station-species")
+def station_species(station_id: str, start: datetime | None = None, end: datetime | None = None):
+    """Species heard at one station, most active first, in detection-minutes (protocol/http.md)."""
+    where, args = window_filter(start, end)
+    with db() as c:
+        rows = c.execute("SELECT d.species, COUNT(DISTINCT substr(w.start_utc, 1, 16)) AS detection_minutes, "
+                         "MAX(w.start_utc) AS last_heard, MAX(d.score) AS best_score "
+                         f"FROM detections d JOIN windows w USING (window_id) WHERE w.station_id = ?{where} "
+                         "GROUP BY d.species ORDER BY detection_minutes DESC, last_heard DESC",
+                         [station_id, *args]).fetchall()
+        out = []
+        for r in rows:
+            recent = c.execute("SELECT w.window_id FROM detections d JOIN windows w USING (window_id) "
+                               f"WHERE w.station_id = ? AND d.species = ?{where} ORDER BY w.start_utc DESC LIMIT 50",
+                               [station_id, r["species"], *args]).fetchall()
+            clip = next((x["window_id"] for x in recent if evidence_path(x["window_id"]).exists()), None)
+            out.append({**dict(r), "evidence_window_id": clip})
+    return out
+
+
+@app.get("/api/species-photo")
+def species_photo(species: str):
+    try:
+        return photos.photo(species)
+    except photos.Unreachable:
+        raise HTTPException(503, "photo source unreachable and nothing cached yet")
+
+
+@app.get("/api/species-photo/file/{name}")
+def species_photo_file(name: str):
+    path = photos.image_path(name)
+    if not path or not path.exists():
+        raise HTTPException(404, "no such photo")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 # Detection-minutes: one bird singing for a minute counts once, not once per 3 s window.
