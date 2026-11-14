@@ -30,3 +30,6 @@ Thumbs.db
 
 # Dashboard database (laptop-local)
 dashboard/chirp.db
+
+# Per-board backend address (see main.py)
+unoq-app/python/server_url.txt

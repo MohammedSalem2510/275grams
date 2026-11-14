@@ -23,8 +23,12 @@ MIC = os.environ.get("CHIRP_MIC", "plughw:CARD=Camera,DEV=0")
 THRESHOLD = 0.5
 MODEL_VERSION = "BirdNET_GLOBAL_6K_V2.4"
 STATION_ID = os.environ.get("CHIRP_STATION", "chirp-1")
-# Laptop running dashboard/server.py. Venue DHCP can change it: update and redeploy.
-SERVER = os.environ.get("CHIRP_SERVER", "http://10.0.39.120:8000")
+# Laptop running dashboard/server.py. Set it per board, never in git (venue DHCP changes it):
+#   echo http://<laptop-ip>:8000 > ~/repo/unoq-app/python/server_url.txt   then restart the app
+_SERVER_FILE = Path(__file__).with_name("server_url.txt")  # gitignored
+SERVER = (os.environ.get("CHIRP_SERVER")
+          or (_SERVER_FILE.read_text().strip() if _SERVER_FILE.exists() else "")
+          or "http://10.0.39.120:8000")
 
 outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the laptop is away
 
