@@ -32,12 +32,6 @@ _SERVER_FILE = Path(__file__).with_name("server_url.txt")  # gitignored
 SERVER = (os.environ.get("CHIRP_SERVER")
           or (_SERVER_FILE.read_text().strip() if _SERVER_FILE.exists() else "")
           or "http://10.0.39.120:8000")
-_TOKEN_FILE = Path(__file__).with_name("station_token.txt")
-station_token = os.environ.get("CHIRP_STATION_TOKEN") or (_TOKEN_FILE.read_text().strip() if _TOKEN_FILE.exists() else "")
-hosted_upload = bool(station_token and SERVER.startswith("https://"))
-# The hosted (public) dashboard only takes uploads carrying the station token (protocol/http.md).
-auth = {"Authorization": f"Bearer {station_token}"} if hosted_upload else {}
-window_headers = {"Content-Type": "application/json", **auth}
 
 outbox: queue.Queue = queue.Queue(maxsize=20000)  # ~16 h of windows if the laptop is away
 
@@ -71,7 +65,7 @@ def send_evidence():
         pending = list(evidence.items())
     for window_id, wav in pending:
         req = urllib.request.Request(f"{SERVER}/api/evidence/{window_id}", wav,
-                                     {"Content-Type": "audio/wav", **auth}, method="PUT")
+                                     {"Content-Type": "audio/wav"}, method="PUT")
         try:
             urllib.request.urlopen(req, timeout=10).read()
         except urllib.error.HTTPError as e:
@@ -241,18 +235,16 @@ def upload():
             except queue.Empty:
                 break
         req = urllib.request.Request(f"{SERVER}/api/windows", json.dumps(batch).encode(),
-                                     window_headers)
+                                     {"Content-Type": "application/json"})
         try:
             urllib.request.urlopen(req, timeout=5).read()
             batch = []
             send_evidence()
         except urllib.error.HTTPError as e:
-            if 400 <= e.code < 500 and e.code not in (401, 403, 429):
+            if 400 <= e.code < 500:  # the server rejected the data itself; retrying won't help
                 print(f"[chirp] upload rejected ({e.code}: {e.read()[:200]!r}); dropping {len(batch)}", flush=True)
                 batch = []
             else:
-                if e.code in (401, 403):  # wrong or missing station token: keep the data, say why
-                    print(f"[chirp] upload refused ({e.code}): check station_token.txt; retrying {len(batch)}", flush=True)
                 time.sleep(5)
         except OSError as e:  # laptop unreachable: keep the batch, try again
             print(f"[chirp] upload failed ({e}); retrying {len(batch)} windows", flush=True)
