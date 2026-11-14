@@ -1,5 +1,6 @@
 # Bridge + LED matrix ship with the platform, but Arduino_RPClite (used by
-# Arduino_RouterBridge) depends on MsgPack, which profiles must list explicitly.
+# Arduino_RouterBridge) depends on MsgPack; profiles don't resolve dependencies,
+# so the whole chain is listed explicitly.
 # Adding Modulino: pick Arduino_Modulino in App Lab's library manager and let it rewrite this.
 profiles:
   default:
@@ -7,4 +8,7 @@ profiles:
       - platform: arduino:zephyr
     libraries:
       - MsgPack (0.4.2)
+      - dependency: DebugLog (0.8.4)
+      - dependency: ArxContainer (0.7.0)
+      - dependency: ArxTypeTraits (0.3.2)
 default_profile: default
