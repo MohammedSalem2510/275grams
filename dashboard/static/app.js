@@ -116,14 +116,9 @@ function makePoint(i) {
   pin.textContent=value==null?'–':i+1;
   pin.setAttribute('aria-label',station.name+' · '+station.status+' · '+(value==null?'Rate unavailable':fmt(value)+' detections per hour'));
   pin.setAttribute('aria-pressed',String(selected===station.station_id));
-  pin.setAttribute('aria-haspopup','dialog');
+  pin.setAttribute('aria-controls','station-panel');
   pin.onclick=()=>{
-    selected=station.station_id;
-    $('station-popup').hidden=false;
-    render();
-    detections(filters());
-    window.chirpSpecies?.show(selected, filters());
-    $('station-popup').focus({preventScroll:true});
+    openStation(station.station_id);
   };
   const glow=document.createElement('span');
   glow.className='glow';
@@ -131,45 +126,36 @@ function makePoint(i) {
   glow.hidden=true;
   return [glow,pin];
 }
-// Station popup: a card on the map next to the selected pin (bottom sheet on narrow screens).
-function selectedPin() {
-  return document.querySelector('#'+($('google-map').hidden?'sample':'google-map')+' .pin[aria-pressed=true]');
+function openStation(id) {
+  selected=id;
+  $('station-panel').hidden=false;
+  window.chirpAlerts?.show(id);
+  render();
+  detections(filters());
+  window.chirpSpecies?.show(id,filters());
+  $('station-panel').focus();
 }
-function placePopup() {
-  const pop=$('station-popup');
-  if(pop.hidden) return;
-  const pin=selectedPin(), map=pop.parentElement;
-  const sheet=!pin||window.innerWidth<=900;
-  pop.classList.toggle('sheet',sheet);
-  if(sheet) { pop.style.left=pop.style.top=''; return; }
-  const m=map.getBoundingClientRect(), p=pin.getBoundingClientRect(), w=pop.offsetWidth, h=pop.offsetHeight, gap=14;
-  let left=p.right-m.left+gap;
-  if(left+w>m.width-8) left=p.left-m.left-gap-w;  // no room on the right: open to the left of the pin
-  left=Math.max(8,Math.min(left,m.width-w-8));
-  const top=Math.max(8,Math.min(p.top-m.top+p.height/2-h/2,m.height-h-8));
-  pop.style.left=left+'px';
-  pop.style.top=top+'px';
+function closeStation() {
+  if (!selected) return;
+  const previous=selected;
+  selected=null;
+  $('station-panel').hidden=true;
+  window.chirpAlerts?.show(null);
+  window.chirpSpecies?.show(null,filters());
+  detections(filters());
+  render();
+  const host=$('google-map').hidden?$('sample-points'):$('google-map');
+  host.querySelectorAll('.pin')[stations.findIndex(s=>s.station_id===previous)]?.focus();
 }
-window.chirpPlacePopup=placePopup;
-// Used by the early-warning rows: show one station and species on the map, popup open.
-window.chirpFocus=(stationId,species)=>{
+window.chirpFocus=(id,species)=>{
   const select=$('species');
   if(species && ![...select.options].some(o=>o.value===species)) select.add(new Option(common(species),species));
   select.value=species||'';
-  selected=stationId;
-  $('station-popup').hidden=false;
+  openStation(id);
   refresh();
 };
-function closePopup() {
-  const pop=$('station-popup');
-  if(pop.hidden) return;
-  const hadFocus=pop.contains(document.activeElement);
-  pop.hidden=true;
-  if(hadFocus) selectedPin()?.focus({preventScroll:true});
-}
-$('popup-close').onclick=closePopup;
-document.addEventListener('keydown',e=>{ if(e.key==='Escape') closePopup(); });
-window.addEventListener('resize',placePopup);
+$('popup-close').onclick=closeStation;
+document.addEventListener('keydown',event=>{if(event.key==='Escape') closeStation();});
 window.addEventListener('resize',()=>requestAnimationFrame(drawHeatmap));
 function render() {
   const focusPin=document.activeElement?.classList.contains('pin');
@@ -201,7 +187,6 @@ function render() {
   })));
   document.querySelectorAll('.station-ref').forEach(el=>el.textContent=station?' · '+station.name:'');
   refreshGoogle?.();
-  placePopup();
   requestAnimationFrame(drawHeatmap);
   if(focusPin) document.querySelector('#'+($('google-map').hidden?'sample':'google-map')+' .pin[aria-pressed=true]')?.focus({preventScroll:true});
 }
@@ -220,7 +205,7 @@ async function refresh() {
     if(request!==version) return;
     stations=registry;
     rates=new Map(values.map(row=>[row.station_id,row]));
-    if(!stations.some(s=>s.station_id===selected)) selected=stations[0]?.station_id;
+    if(selected && !stations.some(s=>s.station_id===selected)) closeStation();
     $('species').replaceChildren(new Option('All birds',''),...species.map(row=>new Option(common(row.species),row.species)));
     $('species').value=active;
     $('connection').textContent='Updated '+new Date().toLocaleTimeString();
@@ -276,7 +261,7 @@ function connectGoogle(key) {
               el.style.left=xy.x+'px';el.style.top=xy.y+'px';
             }
           });
-          placePopup();  // follow the pin when the Google map pans or zooms
+
           requestAnimationFrame(drawHeatmap);
         }
         onRemove(){this.root?.remove();refreshGoogle=null;}

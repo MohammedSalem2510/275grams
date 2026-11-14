@@ -107,10 +107,14 @@
     return btn;
   }
 
+  let stationId, version = 0;
   async function refresh() {
+    const request = ++version;
+    if (!stationId) return;
     try {
       if (!Object.keys(stations).length) (await get('/api/stations')).forEach(s => stations[s.station_id] = s);
-      const alerts = await get('/api/alerts');
+      const alerts = (await get('/api/alerts')).filter(a => a.station_id === stationId);
+      if (request !== version) return;
       const head = el('div', 'alerts-head');
       head.append(el('p', 'eyebrow', 'Early warning'));
       if (alerts.length) head.append(el('span', 'count', String(alerts.length)));
@@ -131,12 +135,16 @@
         el('p', null, 'An alert is a reason to look closer, not proof of population loss. Migration, weather or a moved microphone can cause the same change.'));
       const wasOpen = panel.querySelector('.alerts-how')?.open;
       how.open = !!wasOpen;
-      panel.replaceChildren(head, ...body, how);
+      if (request === version) panel.replaceChildren(head, ...body, how);
     } catch {
-      if (!panel.childElementCount) panel.textContent = 'Early warning unavailable.';
+      if (request === version && !panel.childElementCount) panel.textContent = 'Early warning unavailable.';
     }
   }
 
-  refresh();
+  window.chirpAlerts = {show(id) {
+    stationId = id;
+    panel.replaceChildren();
+    refresh();
+  }};
   setInterval(refresh, 30000);
 })();

@@ -10,6 +10,7 @@ import math
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import re
 
@@ -231,6 +232,30 @@ def get_evidence(window_id: str):
     return FileResponse(path, media_type="audio/wav")
 
 
+@app.get("/api/hourly-activity")
+def hourly_activity(station_id: str, species: str, start: datetime | None = None, end: datetime | None = None):
+    where, args = window_filter(start, end)
+    hours = [dict(hour=h, listening_s=0.0, detection_minutes=0) for h in range(24)]
+    helsinki = ZoneInfo("Europe/Helsinki")
+    # The species predicate belongs in the join so quiet windows still contribute effort.
+    with db() as c:
+        rows = c.execute(f"""
+            SELECT substr(w.start_utc, 1, 13) AS utc_hour, SUM(w.duration_s) AS seconds,
+                   COUNT(DISTINCT CASE WHEN d.species IS NOT NULL THEN substr(w.start_utc, 1, 16) END) AS minutes
+            FROM windows w LEFT JOIN detections d ON d.window_id=w.window_id AND d.species=?
+            WHERE w.station_id=? {where}
+            GROUP BY utc_hour
+        """, [species, station_id, *args])
+        for row in rows:
+            timestamp = datetime.fromisoformat(row["utc_hour"]).replace(tzinfo=timezone.utc)
+            bucket = hours[timestamp.astimezone(helsinki).hour]
+            bucket["listening_s"] += row["seconds"]
+            bucket["detection_minutes"] += row["minutes"]
+    for bucket in hours:
+        bucket["rate_per_hour"] = rate_per_hour(bucket["detection_minutes"], bucket["listening_s"])
+    return hours
+
+
 @app.get("/api/station-species")
 def station_species(station_id: str, start: datetime | None = None, end: datetime | None = None):
     """Species heard at one station, most active first, in detection-minutes (protocol/http.md)."""
@@ -310,7 +335,9 @@ def weekly(c: sqlite3.Connection, weeks: int, now: datetime, station_id: str | N
     lo = utc(now - weeks * WEEK)
     st_sql, st_args = (" AND w.station_id = ?", [station_id]) if station_id else ("", [])
     sp_sql, sp_args = (" AND d.species = ?", [species]) if species else ("", [])
-    bin_of = lambda ts: int((now - datetime.fromisoformat(ts)).total_seconds() // WEEK.total_seconds())
+    def bin_of(ts):
+        timestamp = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        return (now - timestamp) // WEEK
     listening: dict = {}
     temps: dict = {}  # (station, bin) -> [sum of temp x seconds, seconds with a temperature]
     for sid, ts, dur, temp in c.execute("SELECT w.station_id, w.start_utc, w.duration_s, w.temperature_c "

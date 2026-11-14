@@ -10,7 +10,16 @@
 [data-theme=pro] .legend .ramp { background:linear-gradient(90deg,#2873eb,#1ac5ca,#f6d842,#f26728,#c32234); }
 .heat-note { max-width:260px; font-size:10px; line-height:1.5; color:#64746c; margin:8px 0 0; }
 #activity-heatmap { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
-#station-popup,#map-status,.map .legend { z-index:5; }
+#map-status,.map .legend { z-index:5; }
+.workspace:has(#station-panel[hidden]) { grid-template-columns:minmax(0,1fr); }
+.station-summary { position:relative; }
+.station-summary .station-head { padding-right:22px; }
+.map-controls { position:absolute; top:12px; right:12px; z-index:6; background:white; border:1px solid var(--rule); border-radius:8px; max-width:calc(100% - 24px); }
+.map-controls summary { cursor:pointer; padding:7px 12px; font-size:13px; }
+.map-controls .map-settings { display:grid; gap:8px; margin:0; }
+@media(max-width:900px) {
+  .workspace:has(#station-panel[hidden]) .map { height:calc(100dvh - 68px); }
+}
 .map .pin { z-index:3; }
 [data-theme=pro] .map-settings { background:#f7f9f7; }
 @media(max-width:700px) { [data-theme=pro] .provenance { display:none; } }

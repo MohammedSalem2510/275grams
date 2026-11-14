@@ -7,7 +7,7 @@
   const list = document.getElementById('species-cards');
   if (!list) return;
   const photoCache = new Map();  // label -> Promise<meta>
-  let version = 0, shownKey = '';
+  let version = 0, shownKey = '', shownStation;
   const playing = () => [...list.querySelectorAll('audio')].some(a => !a.paused);
 
   // Fallback: the Lil' Birb (CC0) pixel bird, the same one the station's LED matrix shows.
@@ -29,6 +29,50 @@
   };
   const when = iso => new Date(iso).toLocaleString('en-GB', {timeZone: 'Europe/Helsinki', day: 'numeric',
     month: 'short', hour: '2-digit', minute: '2-digit'});
+
+  let hourlySelection = '', inspectedHour = null;
+  async function showHourly(stationId, query, request) {
+    const species = document.getElementById('species').value;
+    const panel = document.getElementById('hourly');
+    panel.hidden = !stationId || !species;
+    if (panel.hidden) return;
+    const bars = document.getElementById('hourly-bars');
+    const detail = document.getElementById('hourly-detail');
+    const selection = JSON.stringify([stationId, species, document.getElementById('period').value]);
+    if (selection !== hourlySelection) {
+      inspectedHour = null;
+      bars.replaceChildren();
+      detail.textContent = 'Loading hourly activity…';
+      hourlySelection = selection;
+    }
+    document.getElementById('hourly-caption').textContent = split(species)[0] + ' · detection-minutes per listening hour · Helsinki time';
+    const q = new URLSearchParams(query);
+    q.set('station_id', stationId);
+    q.set('species', species);
+    try {
+      const response = await fetch('/api/hourly-activity?' + q, {signal: AbortSignal.timeout(8000)});
+      if (!response.ok) throw Error();
+      const hours = await response.json();
+      if (request !== version) return;
+      const max = Math.max(1, ...hours.map(h => h.rate_per_hour ?? 0));
+      const buttons = hours.map(h => {
+        const button = el('button', h.rate_per_hour == null ? 'missing' : '');
+        const clock = String(h.hour).padStart(2,'0') + ':00';
+        const rate = h.rate_per_hour == null ? 'Insufficient listening' : h.rate_per_hour.toFixed(1) + ' detection-min per listening h';
+        button.title = clock + ' · ' + rate + ' · ' + (h.listening_s / 60).toFixed(1) + ' min listened';
+        button.setAttribute('aria-label', button.title);
+        button.style.setProperty('--level', (100 * (h.rate_per_hour ?? 0) / max) + '%');
+        button.onfocus = button.onclick = () => { inspectedHour = h.hour; detail.textContent = button.title; };
+        return button;
+      });
+      const focused = bars.contains(document.activeElement);
+      bars.replaceChildren(...buttons);
+      detail.textContent = inspectedHour == null ? 'Select an hour for its rate and listening time. Hatched hours have under one minute of listening.' : buttons[inspectedHour].title;
+      if (focused && inspectedHour != null) buttons[inspectedHour].focus({preventScroll:true});
+    } catch {
+      if (request === version) { bars.replaceChildren(); detail.textContent = 'Hourly activity unavailable.'; }
+    }
+  }
 
   function photoFor(label) {
     if (!photoCache.has(label)) {
@@ -95,6 +139,13 @@
 
   async function show(stationId, query) {
     const request = ++version;
+    if (stationId !== shownStation) {
+      list.querySelectorAll('audio').forEach(audio => audio.pause());
+      list.replaceChildren();
+      shownKey = '';
+      shownStation = stationId;
+    }
+    showHourly(stationId, query, request);
     if (!stationId) return list.replaceChildren(el('p', 'note', 'Select a station.'));
     const q = new URLSearchParams(query);
     q.delete('species');
@@ -110,7 +161,6 @@
       shownKey = key;
       list.replaceChildren(...(rows.length ? rows.map(card)
         : [el('p', 'note', 'No birds detected here in this period. Silence is not proof of absence.')]));
-      window.chirpPlacePopup?.();  // the popup's height changed
     } catch {
       if (request === version && !list.childElementCount) list.replaceChildren(el('p', 'note', 'Species unavailable.'));
     }
