@@ -11,13 +11,13 @@ The full brief is the "Project_Chirp" Google Doc linked from README.md; it is th
 - Discard human speech on the device: never store clips that contain speech.
 
 ## Milestones
-1. **demo-v0 (stock check):** the stock "Hey Arduino" KWS example runs on our board. This proves the mic, the Brick and Bridge.
-2. **demo-v1 (MVP):** the only priority right now. Camera mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp.
-3. **demo-v2:** the UNO Q uploads each analysed window (recording ID, station, capture time, duration, predictions, clip) over HTTP to a **laptop backend**: FastAPI, SQLite, clips on disk, and a Leaflet dashboard with a local map-image fallback. Keep `detections` and analysed `listening` intervals in separate tables so rates are right from day one. Uploads retry with the same recording ID, so a retry never creates a duplicate. Full plan: `docs/implementation-plan.md`.
+1. ~~demo-v0 (stock check)~~: skipped, because demo-v1 proved the same things.
+2. ✅ **demo-v1 (tagged 14 Nov):** Camera mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp.
+3. **demo-v2 (current priority):** the UNO Q uploads each analysed window (recording ID, station, capture time, duration, predictions, clip) over HTTP to a **laptop backend**: FastAPI, SQLite, clips on disk, and a Leaflet dashboard with a local map-image fallback. Keep `detections` and analysed `listening` intervals in separate tables so rates are right from day one. Uploads retry with the same recording ID, so a retry never creates a duplicate. Full plan: `docs/implementation-plan.md`.
 4. **Network:** the two Atech ESP32 nodes become listening stations that stream to the UNO Q as the edge gateway, with heartbeats for online/offline. This is only possible if the Atech mics expose waveform samples rather than a sound level, so check that first. If they can't, the nodes report activity level and status only.
 5. Stretch: an on-demand camera livestream, human review states, multi-season trends on real data.
 
-Don't touch `atech-node/`, Mosquitto/MQTT or `protocol/` before `demo-v1`, apart from checking the Atech mic, which is reading only. `main.py` must run without a broker.
+`demo-v1` is tagged, so `atech-node/`, MQTT and `protocol/` are open, but demo-v2 (the end-to-end dashboard) comes first. `main.py` must still run without a broker.
 
 ## Hard rules
 - `unoq-app/` must stay self-contained. App Lab compiles only `sketch/sketch.ino`, `sketch/*.h` and `sketch/sketch.yaml`, and runs `python/`. Nothing in it may reference files outside `unoq-app/`.
