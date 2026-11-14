@@ -28,7 +28,7 @@
 5. **Honest numbers.** Point to the station's rate on the map.
    - "The metric is detections per *listening hour*. A station that hasn't listened shows **no data**, never zero birds. Turning the Knob down saves power, and the rate stays correct because we only count time actually analysed."
 
-6. **The early warning (synthetic data, say so).** Open the alerts panel and show the reed bunting decline at **sim-3**.
+6. **The early warning (synthetic data, say so).** Click **sim-5** (Espoo Central Park) and show the Willow Tit decline in its early-warning panel. Willow Tit lives in Finland all year, so this isn't migration.
    - "This is clearly labelled synthetic data. The rule compares the last 2 weeks with the 6 before, needs enough listening, and passes a significance test. It flags a *change in detected activity worth investigating*, not a confirmed population loss."
 
 7. **Offline handling.** Unplug the station's power.
