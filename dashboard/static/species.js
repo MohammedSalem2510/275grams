@@ -56,8 +56,10 @@
       }
       const img = new Image();
       img.alt = name;
-      img.loading = 'lazy';
+      // Not loading='lazy': a lazy image that isn't in the page yet never starts loading,
+      // and this one is only swapped in once it has loaded.
       img.onload = () => media.replaceChildren(img);
+      img.onerror = () => { credit.textContent = 'Photo unavailable'; };
       img.src = meta.image;
       credit.replaceChildren(document.createTextNode(meta.credit + ' · '), Object.assign(el('a', null, 'iNaturalist'),
         {href: meta.source, target: '_blank', rel: 'noopener'}));
