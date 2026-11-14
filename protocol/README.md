@@ -1,19 +1,7 @@
-# MQTT protocol
+# Protocol
 
-Broker: Mosquitto on the UNO Q, port 1883, reached as `<unoq-hostname>.local`.
-All payloads are JSON. `<id>` is the node number (`1`, `2`).
+The only contract is HTTP between the station and the laptop backend: **[http.md](http.md)**.
 
-| Topic | Direction | Retained | Payload |
-|---|---|---|---|
-| `nodes/<id>/status` | node → UNO Q | yes | `"online"` / `"offline"` (`offline` is the MQTT last will) |
-| `nodes/<id>/data` | node → UNO Q | no | `{"ts": <millis>, "value": <float>}`, extend per sensor |
-| `unoq/cmd/<id>` | UNO Q → node | no | `{"cmd": "<name>", "arg": <optional>}` |
-| `unoq/event` | UNO Q → all | no | `{"keyword": "<label>", "score": <0-1>}` |
+To change it, edit `http.md` in its own `protocol:` commit **before** touching any code.
 
-## Commands
-| `cmd` | Effect |
-|---|---|
-| `ping` | node replies on `nodes/<id>/status` with `"online"` |
-| _add yours here_ | |
-
-To change this contract, edit this file in its own `protocol:` commit **before** touching any code.
+The MQTT contract for the Atech ESP32 nodes was dropped on 14 Nov 2026, together with the nodes. Nothing on the station uses MQTT. Station online/offline comes from window uploads (see `/api/stations`). It's in git history (before `protocol: drop MQTT contract`) if satellite nodes come back.
