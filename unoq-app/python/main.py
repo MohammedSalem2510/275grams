@@ -96,7 +96,7 @@ def accept(p: dict) -> bool:
     return False
 
 
-MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "20%")  # camera default 100% (+16 dB) clips on room noise alone
+MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "100%")  # field default (+16 dB); clips indoors on room noise, use 20% for demos
 
 # ---------- Field recording (off unless the flag file exists) ----------
 # Turn on for a field session:   touch ~/repo/unoq-app/python/record_audio   then restart the app
