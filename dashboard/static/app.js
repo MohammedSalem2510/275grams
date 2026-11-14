@@ -4,6 +4,10 @@ let stations = [], rates = new Map(), selected, version = 0, detectionVersion = 
 let refreshGoogle;
 const fmt = n => new Intl.NumberFormat('en-GB', {maximumFractionDigits:1}).format(n);
 const common = label => label.includes('_') ? label.slice(label.indexOf('_')+1) : label;
+function duration(s) {
+  const m=Math.round(s/60);
+  return m<60?m+' min':Math.floor(m/60)+' h '+String(m%60).padStart(2,'0')+' min';
+}
 function filters() {
   const query = new URLSearchParams();
   const hours = Number($('period').value);
@@ -89,8 +93,17 @@ function render() {
   const station=stations.find(item=>item.station_id===selected);
   const row=rates.get(selected);
   $('station-name').textContent=station?.name??'No stations available';
-  $('station-info').textContent=station ? station.status+' · '+(row?.rate_per_hour==null?(row?.listening_s>0?'Not enough listening time for a rate':'No listening data'):fmt(row.detections)+' detections in '+fmt(row.listening_s/60)+' listening minutes') : '';
-  $('rate').textContent=row?.rate_per_hour==null?'No data':fmt(row.rate_per_hour)+' / hour'+(row.low_effort?' · Low listening effort':'');
+  const status=station?.status||'';
+  $('station-status').textContent=status?'● '+status[0].toUpperCase()+status.slice(1):'';
+  $('station-status').className='badge status-'+status;
+  const hasRate=row?.rate_per_hour!=null;
+  $('rate').textContent=hasRate?fmt(row.rate_per_hour):'No data';
+  $('rate-label').textContent=hasRate?'detection-minutes per listening hour':'';
+  $('station-detections').textContent=row?fmt(row.detections):'–';
+  $('station-listened').textContent=row?.listening_s?duration(row.listening_s):'–';
+  // Only explain when the number needs a caveat: no listening is "no data", never zero birds.
+  $('station-info').textContent=!station?'':!hasRate?(row?.listening_s>0?'Not enough listening yet for a rate (under 1 minute).':'No listening in this period, so no data. That is not zero birds.')
+    :row.low_effort?'Low listening effort (under 15 min): treat this rate with caution.':'';
   const lat=stations.map(s=>s.lat), lon=stations.map(s=>s.lon);
   const south=Math.min(...lat)-.001,north=Math.max(...lat)+.001;
   const west=Math.min(...lon)-.001,east=Math.max(...lon)+.001;

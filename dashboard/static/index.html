@@ -52,8 +52,12 @@
 
     <section class="card station" aria-label="Selected station">
       <p class="eyebrow">Selected station</p>
-      <h2 id="station-name"></h2>
-      <strong id="rate"></strong>
+      <div class="station-head"><h2 id="station-name"></h2><span id="station-status" class="badge"></span></div>
+      <div class="station-hero"><strong id="rate"></strong><span id="rate-label" class="hero-label"></span></div>
+      <div class="station-stats">
+        <div class="stat"><span class="stat-label">Detection-min</span><span id="station-detections" class="stat-value"></span></div>
+        <div class="stat"><span class="stat-label">Listened</span><span id="station-listened" class="stat-value"></span></div>
+      </div>
       <p id="station-info"></p>
     </section>
 
