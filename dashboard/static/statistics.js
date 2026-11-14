@@ -41,14 +41,13 @@ function rateText(value, lowEffort) {
   return fmt(value) + (lowEffort ? ' (low effort)' : '');
 }
 
-function renderTrend(station, weeks) {
+function renderTrend(station, weeks, max) {
   const section = document.createElement('section');
   const title = document.createElement('h3');
   title.textContent = stationName(station.station_id);
   const chart = document.createElement('div');
   chart.className = 'trend-chart';
   chart.setAttribute('aria-hidden', 'true');
-  const max = Math.max(1, ...weeks.map(week => week.rate_per_hour ?? 0));
   const details = document.createElement('details');
   const summary = document.createElement('summary');
   summary.textContent = 'Weekly values and listening effort';
@@ -81,6 +80,13 @@ function renderTrend(station, weeks) {
   return section;
 }
 
+let trendSeries = [];
+function showTrend() {
+  const series = trendSeries.find(s => s.station.station_id === element('trend-station').value);
+  const max = Math.max(1, ...trendSeries.flatMap(s => s.weeks.map(w => w.rate_per_hour ?? 0)));
+  element('trends').replaceChildren(...(series ? [renderTrend(series.station, series.weeks, max)] : []));
+}
+
 async function refresh() {
   const request = ++requestVersion;
   const species = element('species').value;
@@ -94,24 +100,35 @@ async function refresh() {
   const filter = species ? {species} : {};
   const visible = stations.filter(station => !selected || station.station_id === selected);
   element('status').textContent = 'Loading statistics…';
-  element('total-count').textContent = '—';
-  element('total-hours').textContent = '—';
-  element('total-rate').textContent = '—';
+  element('source-totals').replaceChildren();
+  trendSeries = [];
   for (const id of ['stations', 'trends', 'alerts', 'detections']) element(id).replaceChildren();
   try {
     const [rates, detections, alerts, trends] = await Promise.all([
       get('rates', {...dates, ...filter}),
       get('detections', {...dates, ...filter, ...(selected ? {station_id:selected} : {}), limit:200}),
       get('alerts', filter),
-      Promise.all(visible.map(station => get('trends', {...filter, station_id:station.station_id, weeks:12})))
+      Promise.all(stations.map(station => get('trends', {...filter, station_id:station.station_id, weeks:12})))
     ]);
     if (request !== requestVersion) return;
     const shown = rates.filter(rate => !selected || rate.station_id === selected);
-    const total = shown.reduce((sum, rate) => sum + rate.detections, 0);
-    const seconds = shown.reduce((sum, rate) => sum + rate.listening_s, 0);
-    element('total-count').textContent = fmt(total);
-    element('total-hours').textContent = fmt(seconds / 3600);
-    element('total-rate').textContent = seconds < 60 ? 'Unavailable' : fmt(total * 3600 / seconds);
+    for (const simulated of [false, true]) {
+      const group = shown.filter(rate => rate.simulated === simulated);
+      if (!group.length) continue;
+      const minutes = group.reduce((sum, r) => sum + r.detections, 0);
+      const seconds = group.reduce((sum, r) => sum + r.listening_s, 0);
+      const card = document.createElement('div');
+      const title = document.createElement('span');
+      title.textContent = simulated ? 'Simulated activity' : 'Live station observations';
+      const metric = document.createElement('strong');
+      metric.textContent = fmt(minutes) + ' detection-min';
+      const effort = document.createElement('p');
+      effort.className = 'note';
+      effort.textContent = fmt(seconds / 3600) + ' listening hours · ' +
+        (seconds < 60 ? 'Rate unavailable' : fmt(minutes * 3600 / seconds) + ' detection-min/h');
+      card.append(title, metric, effort);
+      element('source-totals').append(card);
+    }
     fillRows('stations', shown.map(rate => row([
       stationName(rate.station_id),
       stations.find(station => station.station_id === rate.station_id)?.status ?? 'Unknown',
@@ -121,7 +138,8 @@ async function refresh() {
       new Date(item.start).toLocaleString('en-GB',{timeZone:'Europe/Helsinki',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}), birdName(item.species),
       stationName(item.station_id), item.score.toFixed(2)
     ])), 'No detections in this selection.', 4);
-    element('trends').replaceChildren(...visible.map((station, index) => renderTrend(station, trends[index])));
+    trendSeries = stations.map((station,i) => ({station, weeks: trends[i]}));
+    showTrend();
     const matchingAlerts = alerts.filter(alert => !selected || alert.station_id === selected);
     element('alerts').replaceChildren(...(matchingAlerts.length ? matchingAlerts.map(alert =>
       birdName(alert.species) + ' · ' + stationName(alert.station_id) + ' · ' +
@@ -142,13 +160,20 @@ async function refresh() {
 }
 
 async function init() {
-  // One theme (pro.css) across the dashboard; saved per-browser themes are retired.
   try {
     const [registry, species] = await Promise.all([get('stations'), get('species')]);
     stations = registry;
-    for (const station of stations) element('station').add(new Option(stationName(station.station_id), station.station_id));
+    for (const station of stations) {
+      for (const id of ['station','trend-station']) element(id).add(new Option(stationName(station.station_id), station.station_id));
+    }
     for (const bird of species) element('species').add(new Option(birdName(bird.species), bird.species));
-    for (const id of ['species', 'station', 'period']) element(id).addEventListener('change', refresh);
+    element('trend-station').onchange = showTrend;
+    element('station').onchange = () => {
+      element('trend-station').value = element('station').value;
+      element('trend-station').disabled = !!element('station').value;
+      refresh();
+    };
+    for (const id of ['species', 'period']) element(id).addEventListener('change', refresh);
     await refresh();
   } catch {
     element('status').textContent = 'Could not load the station or species list. Refresh the page to retry.';

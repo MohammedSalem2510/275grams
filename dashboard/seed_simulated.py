@@ -49,6 +49,41 @@ SITES = {
         },
         "decline": ("Emberiza schoeniclus_Reed Bunting", 14, 0.45),  # (species, last N days, factor)
     },
+    "sim-4": {
+        "sessions": [(6, 9), (14, 17)],
+        "offline_days": {7, 36},
+        "species": {
+            "Larus canus_Common Gull": (0.15, 15),
+            "Anas platyrhynchos_Mallard": (0.07, 7),
+        },
+    },
+    "sim-5": {
+        "sessions": [(4, 9)],
+        "offline_days": {8, 40},
+        "species": {
+            "Dendrocopos major_Great Spotted Woodpecker": (0.025, 7),
+            "Parus major_Great Tit": (0.035, 6),
+            "Erithacus rubecula_European Robin": (0.02, 5),
+        },
+    },
+    "sim-6": {
+        "sessions": [(6, 10), (12, 15)],
+        "offline_days": {3, 27},
+        "species": {
+            "Passer montanus_Eurasian Tree Sparrow": (0.18, 8),
+            "Cyanistes caeruleus_Eurasian Blue Tit": (0.12, 13),
+            "Turdus merula_Eurasian Blackbird": (0.07, 7),
+        },
+    },
+    "sim-7": {
+        "sessions": [(5, 9), (13, 16)],
+        "offline_days": {5, 61},
+        "species": {
+            "Turdus merula_Eurasian Blackbird": (0.08, 6),
+            "Parus major_Great Tit": (0.07, 14),
+            "Pica pica_Eurasian Magpie": (0.04, 8),
+        },
+    },
 }
 
 
@@ -68,7 +103,7 @@ def generate(station_id: str, site: dict, rng: random.Random, now: datetime):
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     decline_sp, decline_days, decline_factor = site.get("decline", (None, 0, 1.0))
     weekly_mood: dict = {}  # natural week-to-week variation per species
-    for day in range(DAYS, 0, -1):
+    for day in range(DAYS, -1, -1):
         if day in site["offline_days"]:
             continue  # no listening at all: must show as missing effort, not as zero birds
         date = today - timedelta(days=day)
@@ -76,7 +111,8 @@ def generate(station_id: str, site: dict, rng: random.Random, now: datetime):
         for start_h, end_h in site["sessions"]:
             t, end = date + timedelta(hours=start_h), date + timedelta(hours=end_h)
             singing: dict[str, int] = {}  # species -> minutes left in the current song bout
-            while t < end:
+            end = min(end, now)
+            while t + timedelta(seconds=WINDOW_S) <= end:
                 wid = f"sim-{station_id}-{int(t.timestamp())}"
                 hour = t.hour + t.minute / 60
                 windows.append((wid, station_id, utc(t), WINDOW_S, MODEL, utc(now),

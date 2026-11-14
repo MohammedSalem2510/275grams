@@ -2,8 +2,8 @@
 // Pro "field instrument" configuration, read by app.js through two hooks.
 // Remove this file's <script> tag to get the original behaviour back.
 
-// Rates are detection-minutes per listening hour (roughly 0-10); full colour at 10+.
-window.CHIRP_SCALE_MAX = 10;
+// Fixed across filters so equal rates always have the same colour.
+window.CHIRP_SCALE_MAX = 20;
 
 // Desaturated basemap: colour on the page belongs to data only.
 window.CHIRP_MAP_OPTIONS = {
@@ -25,3 +25,18 @@ window.CHIRP_MAP_OPTIONS = {
     {featureType: 'water', elementType: 'labels.text.fill', stylers: [{color: '#8a9aa2'}]},
   ],
 };
+
+function streetStyles() {
+  const base = window.CHIRP_MAP_OPTIONS.styles;
+  if (document.documentElement.dataset.appearance !== 'dark') return base;
+  return [...base,
+    {elementType:'geometry', stylers:[{color:'#22352c'}]},
+    {featureType:'landscape.natural', elementType:'geometry', stylers:[{color:'#293b31'}]},
+    {featureType:'poi.park', elementType:'geometry', stylers:[{color:'#254331'}]},
+    {featureType:'road', elementType:'geometry', stylers:[{color:'#46574d'}]},
+    {featureType:'water', elementType:'geometry', stylers:[{color:'#132b37'}]},
+    {elementType:'labels.text.fill', stylers:[{color:'#bdcfc1'}]},
+    {elementType:'labels.text.stroke', stylers:[{color:'#203028'}]},
+    {featureType:'water', elementType:'labels.text.fill', stylers:[{color:'#a2bfcb'}]}
+  ];
+}

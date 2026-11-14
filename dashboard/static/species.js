@@ -7,8 +7,9 @@
   const list = document.getElementById('species-cards');
   if (!list) return;
   const photoCache = new Map();  // label -> Promise<meta>
+  const featured = document.getElementById('featured-bird');
   let version = 0, shownKey = '', shownStation;
-  const playing = () => [...list.querySelectorAll('audio')].some(a => !a.paused);
+  const playing = () => [...document.querySelectorAll('#species-cards audio, #featured-bird audio')].some(a => !a.paused);
 
   // Fallback: the Lil' Birb (CC0) pixel bird, the same one the station's LED matrix shows.
   const BIRD = ['........', '........', '...##...', '#.##.#..', '#--###o.', '##-###..', '.####...', '..o.o...'];
@@ -85,28 +86,38 @@
     return photoCache.get(label);
   }
 
-  function card(row) {
+  function card(row, prominent = false) {
     const [name, sci] = split(row.species);
     const active = document.getElementById('species')?.value === row.species;
     const box = el('article', 'sp-card' + (active ? ' active' : ''));
 
     const media = el('div', 'sp-photo');
     media.innerHTML = birdSvg;
-    const credit = el('p', 'sp-credit', 'Photo loading…');
+    const credit = el('p', 'sp-credit');
     photoFor(row.species).then(meta => {
       if (!meta.available) {
-        credit.textContent = 'No photo available';
         return;
       }
       const img = new Image();
       img.alt = name;
       // Not loading='lazy': a lazy image that isn't in the page yet never starts loading,
       // and this one is only swapped in once it has loaded.
-      img.onload = () => media.replaceChildren(img);
-      img.onerror = () => { credit.textContent = 'Photo unavailable'; };
+      img.onload = () => {
+        media.replaceChildren(img);
+        // Shorten iNaturalist's standard wording while preserving distinct uploader credits.
+        const match = meta.credit.match(/^\(c\) (.+?), some rights reserved \((CC [^)]+)\)(?:, uploaded by (.+))?$/i);
+        let attribution = meta.credit;
+        if (match) {
+          const [, author, licence, uploader] = match;
+          attribution = '© ' + author + ' · ' + licence;
+          if (uploader && uploader !== author) attribution += ' · uploaded by ' + uploader;
+        }
+        const source = el('a', null, 'iNaturalist');
+        Object.assign(source, {href: meta.source, target: '_blank', rel: 'noopener'});
+        credit.append('Photo ' + attribution + ' · ', source);
+        credit.title = meta.credit;
+      };
       img.src = meta.image;
-      credit.replaceChildren(document.createTextNode(meta.credit + ' · '), Object.assign(el('a', null, 'iNaturalist'),
-        {href: meta.source, target: '_blank', rel: 'noopener'}));
     });
 
     const body = el('div', 'sp-body');
@@ -121,26 +132,44 @@
       select.dispatchEvent(new Event('change'));
     };
     body.append(pick, el('p', 'sp-sci', sci));
-    const stats = el('p', 'sp-stats');
-    stats.textContent = `${row.detection_minutes} detection-min · last ${when(row.last_heard)} · best score ${row.best_score.toFixed(2)}`;
-    body.append(stats);
+    body.append(el('p', 'sp-heard', 'Last heard ' + when(row.last_heard)));
+    const details = el('details', 'sp-details');
+    details.dataset.species = row.species;
+    details.append(el('summary', null, row.evidence_window_id && !prominent ? 'Recording & details' : 'Detection details'));
+    const count = row.detection_minutes;
+    details.append(el('p', null, 'Heard in ' + count + (count === 1 ? ' distinct minute' : ' distinct minutes') + ' during this period.'));
+    details.append(el('p', null, 'Highest model score: ' + row.best_score.toFixed(2) + ' / 1'));
     if (row.evidence_window_id) {
       const audio = el('audio', 'evidence');
       audio.controls = true;
       audio.preload = 'none';
       audio.src = '/api/evidence/' + encodeURIComponent(row.evidence_window_id);
       audio.setAttribute('aria-label', 'Latest recording of ' + name);
-      body.append(audio);
+      if (prominent) {
+        const play = el('button', 'sp-play', '▶ Play recording');
+        play.type = 'button';
+        play.setAttribute('aria-label', 'Play recording of ' + name);
+        play.onclick = async () => {
+          if (!audio.paused) return audio.pause();
+          try { await audio.play(); }
+          catch { play.textContent = 'Retry recording'; }
+        };
+        audio.controls = false;
+        audio.onplay = () => { play.textContent = 'Ⅱ Pause recording'; play.setAttribute('aria-label', 'Pause recording of ' + name); };
+        audio.onpause = () => { play.textContent = '▶ Play recording'; play.setAttribute('aria-label', 'Play recording of ' + name); };
+        body.append(play, audio);
+      } else details.append(audio);
     }
-    body.append(credit);
-    box.append(media, body);
+    box.append(media, body, details, credit);
     return box;
   }
 
   async function show(stationId, query) {
     const request = ++version;
     if (stationId !== shownStation) {
-      list.querySelectorAll('audio').forEach(audio => audio.pause());
+      document.querySelectorAll('#species-cards audio, #featured-bird audio').forEach(audio => audio.pause());
+      featured.hidden = true;
+      featured.replaceChildren();
       list.replaceChildren();
       shownKey = '';
       shownStation = stationId;
@@ -159,8 +188,18 @@
       const key = stationId + '|' + (document.getElementById('species')?.value || '') + '|' + JSON.stringify(rows);
       if (key === shownKey || playing()) return;
       shownKey = key;
+      const expanded = new Set([...list.querySelectorAll('.sp-details[open]')].map(item => item.dataset.species));
+      const filter = document.getElementById('species').value;
+      const recent = rows.filter(r => !filter || r.species === filter).sort((a,b) => b.last_heard.localeCompare(a.last_heard));
+      const latest = recent.find(r => r.evidence_window_id) || recent[0];
+      featured.hidden = !latest || document.getElementById('station-status').classList.contains('status-simulated');
+      featured.replaceChildren();
+      if (!featured.hidden) {
+        featured.append(el('p', 'eyebrow', latest === recent[0] ? 'Latest bird heard' : 'Recently heard · recording available'), card(latest, true));
+      }
       list.replaceChildren(...(rows.length ? rows.map(card)
         : [el('p', 'note', 'No birds detected here in this period. Silence is not proof of absence.')]));
+      for (const item of list.querySelectorAll('.sp-details')) item.open = expanded.has(item.dataset.species);
     } catch {
       if (request === version && !list.childElementCount) list.replaceChildren(el('p', 'note', 'Species unavailable.'));
     }

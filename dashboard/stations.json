@@ -1,5 +1,9 @@
 [
-  {"station_id": "chirp-1", "name": "Otaniemi shore (live UNO Q)", "lat": 60.1856, "lon": 24.8320, "sensors": ["audio"], "simulated": false},
+  {"station_id": "chirp-1", "name": "Hybridiarena Hype (live UNO Q)", "lat": 60.156605, "lon": 24.630304, "sensors": ["audio"], "simulated": false},
   {"station_id": "sim-2", "name": "Keilaniemi woods (simulated)", "lat": 60.1770, "lon": 24.8290, "sensors": ["audio"], "simulated": true},
-  {"station_id": "sim-3", "name": "Laajalahti reeds (simulated)", "lat": 60.1915, "lon": 24.8090, "sensors": ["audio"], "simulated": true}
+  {"station_id": "sim-3", "name": "Laajalahti reeds (simulated)", "lat": 60.1915, "lon": 24.8090, "sensors": ["audio"], "simulated": true},
+  {"station_id": "sim-4", "name": "Sökö shore (simulated)", "lat": 60.138, "lon": 24.671, "sensors": ["audio"], "simulated": true},
+  {"station_id": "sim-5", "name": "Espoo Central Park (simulated)", "lat": 60.185, "lon": 24.700, "sensors": ["audio"], "simulated": true},
+  {"station_id": "sim-6", "name": "Matinkylä gardens (simulated)", "lat": 60.158, "lon": 24.739, "sensors": ["audio"], "simulated": true},
+  {"station_id": "sim-7", "name": "Tapiola park (simulated)", "lat": 60.178, "lon": 24.798, "sensors": ["audio"], "simulated": true}
 ]

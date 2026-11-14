@@ -58,20 +58,16 @@ body.atlas-page {
 }
 .brand {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
   font: 600 20px/1 var(--sans);
   letter-spacing: -0.02em;
   color: var(--ink);
   text-decoration: none;
 }
-.brand .mark {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: var(--accent-ink);
-  box-shadow: 0 0 0 3px var(--accent);
-  align-self: center;
+.brand img {
+  image-rendering: pixelated;
+  transform: translateY(3px);
 }
 .brand small {
   font: 500 11px/1 var(--mono);
@@ -347,9 +343,12 @@ input { accent-color: var(--accent-ink); }
 .sp-name:focus-visible { outline: 2px solid var(--accent-ink); outline-offset: 2px; }
 .sp-card.active .sp-name { color: var(--accent-ink); }
 .sp-sci { margin: 0; font: italic 400 12px/1.3 var(--sans); color: var(--ink-2); }
-.sp-stats { margin: 2px 0 0; font: 400 11px/1.4 var(--mono); color: var(--ink-2); }
-.sp-body audio.evidence { margin-top: 4px; height: 28px; }
-.sp-credit { margin: 2px 0 0; font-size: 10px; line-height: 1.3; color: var(--ink-3); }
+.sp-heard { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
+.sp-details, .sp-credit { grid-column: 1 / -1; }
+.sp-details summary { width: fit-content; cursor: pointer; color: var(--accent-ink); font-size: 12px; }
+.sp-details p { margin: 5px 0; font-size: 12px; color: var(--ink-2); }
+.sp-credit { margin: 0; font-size: 11px; line-height: 1.4; color: var(--ink-2); }
+.sp-credit:empty { display: none; }
 .sp-credit a { color: inherit; }
 
 /* ---------- Early warning (alerts.js): one compact row per flagged decline ---------- */
@@ -377,6 +376,7 @@ input { accent-color: var(--accent-ink); }
 .spark .past { fill: var(--ink-3); }
 .spark .recent { fill: var(--critical); }
 .warn-none { margin: 0; font-size: 12px; color: var(--ink-2); }
+.alerts-network { align-self: flex-start; margin-top: 6px; font-size: 12px; color: var(--accent-ink); }
 .alerts-how { margin-top: 6px; }
 .alerts-how summary { cursor: pointer; width: max-content; font-size: 11.5px; color: var(--accent-ink); }
 .alerts-how summary:hover { text-decoration: underline; }

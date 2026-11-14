@@ -7,7 +7,15 @@
 [data-theme=pro] .provenance { gap:24px; }
 [data-theme=pro] .provenance div:first-child { display:none; }
 [data-theme=pro] .legend { background:#fffffff2; border-radius:12px; box-shadow:0 4px 24px #17332115; }
-[data-theme=pro] .legend .ramp { background:linear-gradient(90deg,#2873eb,#1ac5ca,#f6d842,#f26728,#c32234); }
+[data-theme=pro] .legend .ramp { background:linear-gradient(90deg,#5a79bd,#3da1c6,#3ec1b5,#a6d67f,#ffd76b); }
+.legend-key summary { margin-top:6px; cursor:pointer; font-size:12px; color:var(--ink-2); }
+.pin.hardware-pin { background:var(--surface) url('/favicon.svg') center / 20px 20px no-repeat; }
+.hardware-label { position:absolute; left:50%; bottom:calc(100% + 5px); transform:translateX(-50%); white-space:nowrap; padding:3px 7px; border-radius:4px; background:var(--surface); color:var(--ink); text-shadow:none; font:600 12px/1.2 var(--sans); box-shadow:0 1px 5px #0003; }
+#featured-bird { margin:12px 0; padding:12px 0; border-block:1px solid var(--rule); }
+#featured-bird .sp-card { border:0; padding:0; }
+#featured-bird .sp-play { align-self:flex-start; margin-top:6px; padding:7px 12px; border:1px solid var(--accent-ink); border-radius:18px; background:var(--accent); color:var(--ink); font:600 13px/1.2 var(--sans); cursor:pointer; }
+#featured-bird audio { display:none; }
+.map-controls summary { max-width:32ch; overflow-wrap:anywhere; }
 .heat-note { max-width:260px; font-size:10px; line-height:1.5; color:#64746c; margin:8px 0 0; }
 #activity-heatmap { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2; }
 #map-status,.map .legend { z-index:5; }
@@ -21,5 +29,12 @@
   .workspace:has(#station-panel[hidden]) .map { height:calc(100dvh - 68px); }
 }
 .map .pin { z-index:3; }
+.station-group {
+  position:absolute; transform:translate(-50%,-50%); white-space:nowrap;
+  padding:6px 9px; border:2px solid white; border-radius:16px;
+  background:#245344; color:white; box-shadow:0 1px 5px #17332155;
+  font:600 12px/1.15 system-ui,sans-serif; cursor:zoom-in;
+}
+.station-group:focus-visible { outline:2px solid #173321; outline-offset:2px; }
 [data-theme=pro] .map-settings { background:#f7f9f7; }
 @media(max-width:700px) { [data-theme=pro] .provenance { display:none; } }

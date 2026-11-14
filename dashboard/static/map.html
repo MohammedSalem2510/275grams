@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en" data-theme="pro">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Chirp — Field Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="pro.css">
+<link rel="stylesheet" href="demo6.css">
+<script src="/appearance.js"></script>
+<link rel="stylesheet" href="/appearance.css">
+<body class="atlas-page">
+<header class="topbar">
+  <a class="brand" href="./" aria-label="Chirp home"><img src="/favicon.svg" width="24" height="24" alt="">chirp<small>Field Atlas</small></a>
+  <nav class="pages" aria-label="Dashboard"><a href="/map.html" aria-current="page">Map</a><a href="/statistics.html">Statistics</a></nav>
+  <dl class="provenance">
+    <div><dt>Model</dt><dd>BirdNET v2.4 · on-device</dd></div>
+    <div><dt>Metric</dt><dd>detection-min / listening h</dd></div>
+    <div><dt>Times</dt><dd>Helsinki</dd></div>
+    <div><dt>Status</dt><dd id="connection" role="status">Connecting…</dd></div>
+  </dl>
+  <button class="appearance-toggle" type="button" aria-pressed="false">Dark mode</button>
+</header>
+
+<div class="workspace">
+  <section class="atlas" aria-label="Bird activity map">
+    <div class="map">
+      <div id="sample"><div id="sample-points"></div></div>
+      <div id="google-map" hidden></div>
+      <span id="map-status" role="status">Station positions</span>
+      <canvas id="activity-heatmap" aria-hidden="true"></canvas>
+    <details class="map-controls"><summary id="filter-caption">All birds · Last 24 hours</summary><div class="toolbar map-settings">
+
+      <label>Species <select id="species"></select></label>
+      <label>Period <select id="period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="">All time</option></select></label>
+      <label class="toggle"><input id="heat" type="checkbox" checked> Activity heatmap</label>
+      <label id="map-view-control" hidden>Map view <select id="map-view"><option value="roadmap">Street</option><option value="satellite">Satellite</option></select></label>
+      <label id="map-tilt-control" class="toggle" hidden><input id="map-tilt" type="checkbox" checked> 3D tilt</label>
+    </div></details>
+      <div class="legend" aria-label="Map legend">
+        <p class="eyebrow legend-title">Activity</p>
+        <p class="legend-unit">Detection-minutes per listening hour</p>
+        <div class="ramp" aria-hidden="true"></div>
+        <div class="ticks"><span>0</span><span>10</span><span>20+</span></div>
+        <details class="legend-key"><summary>Map key</summary><p class="heat-note">Smoothed station activity · surrounding areas unsampled. Radius is visual, not bird distance.</p>
+        <ul class="keys">
+          <li><b class="k-live"></b>Live</li>
+          <li><b class="k-sim"></b>Simulated</li>
+          <li><b class="k-nodata"></b>No data</li>
+        </ul></details>
+      </div>
+    </div>
+  </section>
+
+  <aside id="station-panel" class="panel" aria-labelledby="station-name" tabindex="-1" hidden>
+      <div class="card station-summary">
+        <button type="button" id="popup-close" class="popup-close" aria-label="Close station details">×</button>
+        <p class="eyebrow">Station</p>
+        <div class="station-head"><h2 id="station-name"></h2><span id="station-status" class="badge"></span></div>
+        <section id="featured-bird" aria-label="Latest bird heard" hidden></section>
+        <div class="station-hero"><strong id="rate"></strong><span id="rate-label" class="hero-label"></span></div>
+        <div class="station-stats">
+          <div class="stat"><span class="stat-label">Detection-min</span><span id="station-detections" class="stat-value"></span></div>
+          <div class="stat"><span class="stat-label">Listened</span><span id="station-listened" class="stat-value"></span></div>
+          <div class="stat"><span class="stat-label">Air temp</span><span id="station-temp" class="stat-value"></span><span id="station-temp-at" class="stat-sub"></span></div>
+        </div>
+        <p id="station-info"></p>
+      </div>
+
+    <div id="alerts-slot"></div>
+
+    <section class="card species-card" aria-label="Species heard at the selected station">
+      <p class="eyebrow">Species heard here</p>
+      <section id="hourly" hidden aria-label="Species activity by hour">
+        <strong>Activity by hour</strong>
+        <p class="note" id="hourly-caption"></p>
+        <div id="hourly-bars" aria-label="Helsinki clock hours"></div>
+        <div class="hourly-axis" aria-hidden="true"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+        <p id="hourly-detail" class="note" aria-live="polite"></p>
+      </section>
+      <div id="species-cards"></div>
+    </section>
+
+    <section class="card detections-card" aria-label="Recent detections">
+      <p class="eyebrow">Recent detections</p>
+      <ul id="detections"></ul>
+    </section>
+
+
+
+  </aside>
+</div>
+
+<script src="maps-config.js"></script><script src="pro.js"></script><script src="app.js?v=station-alerts-2"></script><script src="species.js"></script><script src="alerts.js?v=station-alerts-2"></script>
+</body>
+</html>

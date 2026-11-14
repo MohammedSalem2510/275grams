@@ -12,7 +12,6 @@
   else document.querySelector('.panel')?.prepend(panel);
 
   const RECENT_WEEKS = 2;
-  const stations = {};
   const el = (tag, cls, text) => {
     const n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -66,8 +65,7 @@
     return lines.join('\n');
   }
 
-  async function row(a) {
-    const st = stations[a.station_id] || {};
+  function row(a, st) {
     const name = common(a.species);
     const pct = Math.round(a.drop * 100);
     const btn = el('button', 'warn');
@@ -98,28 +96,43 @@
     }
     const fig = el('span', 'warn-fig');
     fig.append(el('span', 'warn-drop', '−' + pct + '%'));
-    try {
-      const q = new URLSearchParams({station_id: a.station_id, species: a.species, weeks: 12});
-      const weeks = await get('/api/trends?' + q);
+    const q = new URLSearchParams({station_id: a.station_id, species: a.species, weeks: 12});
+    get('/api/trends?' + q).then(weeks => {
       if (weeks.length) fig.append(sparkline(weeks));
-    } catch { /* the sparkline is optional */ }
+    }).catch(() => {}); // The alert remains readable if its sparkline cannot load.
     btn.append(photo, text, fig);
     return btn;
   }
 
-  let stationId, version = 0;
+  let station, version = 0;
   async function refresh() {
     const request = ++version;
-    if (!stationId) return;
+    if (!station) return;
     try {
-      if (!Object.keys(stations).length) (await get('/api/stations')).forEach(s => stations[s.station_id] = s);
-      const alerts = (await get('/api/alerts')).filter(a => a.station_id === stationId);
+      const alerts = await get('/api/alerts?' + new URLSearchParams({station_id: station.station_id}));
       if (request !== version) return;
       const head = el('div', 'alerts-head');
       head.append(el('p', 'eyebrow', 'Early warning'));
       if (alerts.length) head.append(el('span', 'count', String(alerts.length)));
-      const body = alerts.length ? await Promise.all(alerts.map(row))
-        : [el('p', 'warn-none', 'No declines flagged.')];
+      const body = alerts.map(a => row(a, station));
+      if (!alerts.length) {
+        const message = el('p', 'warn-none', 'No declines flagged at this station.');
+        body.push(message);
+        const query = new URLSearchParams({station_id: station.station_id, weeks: 8});
+        get('/api/trends?' + query).then(weeks => {
+          if (request !== version || weeks.length !== 8) return;
+          const hoursIn = bins => bins.reduce((total, week) => total + week.listening_s, 0) / 3600;
+          const recent = hoursIn(weeks.slice(-RECENT_WEEKS));
+          const baseline = hoursIn(weeks.slice(0, -RECENT_WEEKS));
+          if (recent < 5 || baseline < 15) {
+            message.textContent = 'Gathering listening history for a baseline.';
+            how.append(el('p', null, 'Recent listening: ' + recent.toFixed(1)
+              + ' of 5 h needed. Baseline: ' + baseline.toFixed(1) + ' of 15 h needed.'));
+          }
+        }).catch(() => {}); // An optional effort summary cannot invalidate a successful alert check.
+      }
+      const network = el('a', 'alerts-network', 'View alerts across all stations');
+      network.href = '/statistics.html#decline-alerts';
       const how = el('details', 'alerts-how');
       const list = el('ul');
       [['A drop of at least 30 %', 'in how often the species is detected'],
@@ -135,15 +148,17 @@
         el('p', null, 'An alert is a reason to look closer, not proof of population loss. Migration, weather or a moved microphone can cause the same change.'));
       const wasOpen = panel.querySelector('.alerts-how')?.open;
       how.open = !!wasOpen;
-      if (request === version) panel.replaceChildren(head, ...body, how);
+      if (request === version) panel.replaceChildren(head, ...body, how, network);
     } catch {
-      if (request === version && !panel.childElementCount) panel.textContent = 'Early warning unavailable.';
+      if (request === version && !panel.querySelector('.alerts-head')) panel.textContent = 'Early warning could not load. Retrying…';
     }
   }
 
-  window.chirpAlerts = {show(id) {
-    stationId = id;
+  window.chirpAlerts = {show(selected) {
+    // Also accept the ID passed by map tabs using the older cached app.js.
+    station = typeof selected === 'string' ? {station_id: selected} : selected;
     panel.replaceChildren();
+    if (station) panel.textContent = 'Checking for declines…';
     refresh();
   }};
   setInterval(refresh, 30000);

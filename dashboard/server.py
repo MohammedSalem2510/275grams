@@ -53,6 +53,8 @@ CREATE TABLE IF NOT EXISTS detections (       -- accepted predictions within a w
   PRIMARY KEY (window_id, species)
 );
 CREATE INDEX IF NOT EXISTS idx_windows_station_start ON windows(station_id, start_utc);
+CREATE INDEX IF NOT EXISTS idx_windows_station_received ON windows(station_id, received_utc);
+CREATE INDEX IF NOT EXISTS idx_windows_start ON windows(start_utc);
 CREATE INDEX IF NOT EXISTS idx_detections_species ON detections(species);
 """
 
@@ -148,12 +150,14 @@ def ingest(windows: list[Window]):
 @app.get("/api/stations")
 def stations():
     with db() as c:
-        last = dict(c.execute("SELECT station_id, MAX(received_utc) FROM windows GROUP BY station_id").fetchall())
-        # Latest Modulino Thermo reading per station (protocol/http.md)
-        temps = {r[0]: (r[1], r[2]) for r in c.execute(
-            "SELECT w.station_id, w.temperature_c, w.start_utc FROM windows w JOIN "
-            "(SELECT station_id, MAX(start_utc) AS m FROM windows WHERE temperature_c IS NOT NULL GROUP BY station_id) t "
-            "ON w.station_id = t.station_id AND w.start_utc = t.m WHERE w.temperature_c IS NOT NULL")}
+        last, temps = {}, {}
+        for station in STATIONS:
+            sid = station["station_id"]
+            last[sid] = c.execute("SELECT MAX(received_utc) FROM windows WHERE station_id = ?", (sid,)).fetchone()[0]
+            reading = c.execute("SELECT temperature_c, start_utc FROM windows WHERE station_id = ? "
+                                "AND temperature_c IS NOT NULL ORDER BY start_utc DESC LIMIT 1", (sid,)).fetchone()
+            if reading:
+                temps[sid] = reading
     now = datetime.now(timezone.utc)
     out = []
     for s in STATIONS:
@@ -340,15 +344,18 @@ def weekly(c: sqlite3.Connection, weeks: int, now: datetime, station_id: str | N
         return (now - timestamp) // WEEK
     listening: dict = {}
     temps: dict = {}  # (station, bin) -> [sum of temp x seconds, seconds with a temperature]
-    for sid, ts, dur, temp in c.execute("SELECT w.station_id, w.start_utc, w.duration_s, w.temperature_c "
-                                        f"FROM windows w WHERE w.start_utc >= ?{st_sql}", [lo, *st_args]):
-        b = bin_of(ts)
-        if 0 <= b < weeks:
-            listening[(sid, b)] = listening.get((sid, b), 0.0) + dur
-            if temp is not None:
-                acc = temps.setdefault((sid, b), [0.0, 0.0])
-                acc[0] += temp * dur
-                acc[1] += dur
+    # Aggregate in SQLite so a client never materialises months of individual windows.
+    for b in range(weeks):
+        upper = now - b * WEEK
+        periods = (utc(upper - WEEK), utc(upper), *st_args)
+        for sid, secs, weighted_temp, temp_secs in c.execute(
+            "SELECT w.station_id, SUM(w.duration_s), SUM(w.temperature_c * w.duration_s), "
+            "SUM(CASE WHEN w.temperature_c IS NOT NULL THEN w.duration_s END) FROM windows w "
+            f"WHERE w.start_utc > ? AND w.start_utc <= ?{st_sql} GROUP BY w.station_id", periods
+        ):
+            listening[(sid, b)] = secs
+            if temp_secs:
+                temps[(sid, b)] = (weighted_temp, temp_secs)
     minutes: dict = {}
     for sid, sp, minute in c.execute("SELECT DISTINCT w.station_id, d.species, substr(w.start_utc, 1, 16) "
                                      "FROM detections d JOIN windows w USING (window_id) "
@@ -407,10 +414,10 @@ def is_decline(recent_n: int, recent_s: float, base_n: int, base_s: float) -> di
 
 
 @app.get("/api/alerts")
-def alerts(species: str | None = None):
+def alerts(species: str | None = None, station_id: str | None = None):
     weeks = RECENT_WEEKS + BASELINE_WEEKS
     with db() as c:
-        listening, minutes, temps = weekly(c, weeks, datetime.now(timezone.utc), species=species)
+        listening, minutes, temps = weekly(c, weeks, datetime.now(timezone.utc), station_id, species)
     out = []
     for sid, sp in sorted({(sid, sp) for sid, sp, _b in minutes}):
         recent = range(RECENT_WEEKS)
