@@ -21,10 +21,25 @@ async function api(endpoint, query = new URLSearchParams()) {
 }
 function items(lines) {
   $('detections').replaceChildren(...lines.map(line => {
+    if (line instanceof Node) return line;
     const li = document.createElement('li');
     li.textContent = line;
     return li;
   }));
+}
+function detectionItem(row) {
+  const li = document.createElement('li');
+  li.textContent = common(row.species)+' · '+new Date(row.start).toISOString().slice(0,19).replace('T',' ')+' UTC · score '+row.score.toFixed(2);
+  if (row.evidence) {  // the 3 s window BirdNET heard, so a person can check the call
+    const audio = document.createElement('audio');
+    audio.controls = true;
+    audio.preload = 'none';
+    audio.src = '/api/evidence/'+encodeURIComponent(row.window_id);
+    audio.className = 'evidence';
+    audio.setAttribute('aria-label', 'Recording of '+common(row.species));
+    li.append(audio);
+  }
+  return li;
 }
 async function detections(query) {
   const request = ++detectionVersion;
@@ -38,7 +53,7 @@ async function detections(query) {
   try {
     const rows = await api('detections',query);
     if (request!==detectionVersion || refreshVersion!==version) return;
-    items(rows.length ? rows.map(row => common(row.species)+' · '+new Date(row.start).toISOString().slice(0,19).replace('T',' ')+' UTC · score '+row.score.toFixed(2)) : ['No detections in this selection.']);
+    items(rows.length ? rows.map(detectionItem) : ['No detections in this selection.']);
   } catch {
     if (request===detectionVersion && refreshVersion===version) items(['Could not load detections.']);
   }

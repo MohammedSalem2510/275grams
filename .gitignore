@@ -38,3 +38,6 @@ unoq-app/python/server_url.txt
 # Field recordings stay on the board
 unoq-app/recordings/
 unoq-app/python/record_audio
+
+# Detection audio evidence (laptop-local)
+dashboard/evidence/

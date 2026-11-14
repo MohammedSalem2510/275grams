@@ -11,7 +11,10 @@ import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Response
+import re
+
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -22,6 +25,10 @@ LIVE_IDS = {s["station_id"] for s in STATIONS if not s["simulated"]}
 ONLINE_WITHIN_S = 30
 MIN_LISTENING_S = 60  # less than this in a range = "no data", not a rate
 LOW_EFFORT_S = 15 * 60  # a rate exists, but on too little listening to trust: flag it
+EVIDENCE_DIR = HERE / "evidence"  # gitignored: detection audio stays on the laptop
+EVIDENCE_DIR.mkdir(exist_ok=True)
+EVIDENCE_MAX_BYTES = 1_000_000  # a 3 s 48 kHz mono window is ~288 kB
+SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")  # window_id becomes a file name
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS windows (          -- listening effort: one row per analysed window
@@ -179,7 +186,41 @@ def detections(species: str | None = None, station_id: str | None = None,
         rows = c.execute("SELECT w.window_id, w.station_id, w.start_utc AS start, d.species, d.score "
                          f"FROM detections d JOIN windows w USING (window_id) WHERE 1=1{where} "
                          "ORDER BY w.start_utc DESC LIMIT ?", args).fetchall()
-    return [dict(r) for r in rows]
+    return [{**dict(r), "evidence": evidence_path(r["window_id"]).exists()} for r in rows]
+
+
+def evidence_path(window_id: str) -> Path:
+    if not SAFE_ID.match(window_id):
+        raise HTTPException(404, "no such window")
+    return EVIDENCE_DIR / f"{window_id}.wav"
+
+
+@app.put("/api/evidence/{window_id}")
+async def put_evidence(window_id: str, request: Request):
+    """Audio for one accepted detection; only after its window is stored (protocol/http.md)."""
+    path = evidence_path(window_id)
+    body = await request.body()
+    if len(body) > EVIDENCE_MAX_BYTES:
+        raise HTTPException(413, "evidence larger than 1 MB")
+    if body[:4] != b"RIFF" or body[8:12] != b"WAVE":
+        raise HTTPException(422, "evidence must be a WAV file")
+    with db() as c:
+        known = c.execute("SELECT 1 FROM detections d JOIN windows w USING (window_id) "
+                          "WHERE d.window_id = ? LIMIT 1", (window_id,)).fetchone()
+    if not known:
+        raise HTTPException(404, "unknown window or no detection in it")
+    tmp = path.with_suffix(".part")
+    tmp.write_bytes(body)
+    tmp.replace(path)  # atomic: a reader never sees half a file
+    return {"stored": True}
+
+
+@app.get("/api/evidence/{window_id}")
+def get_evidence(window_id: str):
+    path = evidence_path(window_id)
+    if not path.exists():
+        raise HTTPException(404, "no evidence for this window")
+    return FileResponse(path, media_type="audio/wav")
 
 
 # Detection-minutes: one bird singing for a minute counts once, not once per 3 s window.
