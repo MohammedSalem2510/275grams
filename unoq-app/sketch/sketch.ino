@@ -1,5 +1,5 @@
 // UNO Q MCU side: real-time I/O for the station, exposed to Python over Bridge.
-//  - LED matrix: a bird on each detection; the duty-cycle bar shows for 3 s after a Knob change, then dark
+//  - LED matrix: a bird flaps its wings on each detection; the duty-cycle bar shows for 3 s after a Knob change, then dark
 //  - Modulino Buzzer: short chirp on each detection
 //  - Modulino Thermo: temperature context for every listening window
 //  - Modulino Knob: duty cycle (100 / 50 / 25 / 10 % of each minute analysed); press = 100 %
@@ -16,21 +16,54 @@ bool has_thermo = false, has_buzzer = false, has_knob = false;
 
 const uint8_t COLS = 13, ROWS = 8, FRAME_SIZE = COLS * ROWS;  // brightness 0-7
 
-// Bird: idle frame of "Lil' Birb" by casual-garage-coder (CC0), https://casual-garage-coder.itch.io/lil-birb
-// 7 = body, 3 = wing, 4 = beak and feet, the unlit pixel in the head is the eye.
-uint8_t detect_frame[FRAME_SIZE] = {
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
-  0, 0, 0, 7, 0, 7, 7, 0, 7, 0, 0, 0, 0,
-  0, 0, 0, 7, 3, 3, 7, 7, 7, 4, 0, 0, 0,
-  0, 0, 0, 7, 7, 3, 7, 7, 7, 0, 0, 0, 0,
-  0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+// Bird: flight cycle of "Lil' Birb" by casual-garage-coder (CC0), https://casual-garage-coder.itch.io/lil-birb
+// 7 = body, 3 = wing, 4 = beak and feet, the unlit pixel in the head is the eye. Played up, level, down, level.
+const uint8_t FLAP_FRAMES = 4;
+uint8_t flap[FLAP_FRAMES][FRAME_SIZE] = {
+  {  // wing up
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 3, 7, 7, 0, 7, 0, 0, 0, 0,
+    0, 0, 7, 7, 3, 3, 7, 7, 7, 4, 0, 0, 0,
+    0, 0, 0, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  },
+  {  // wing level
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 7, 7, 0, 7, 0, 0, 0, 0,
+    0, 0, 7, 3, 3, 3, 7, 7, 7, 4, 0, 0, 0,
+    0, 0, 0, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  },
+  {  // wing down
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 7, 7, 0, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 3, 3, 7, 7, 7, 4, 0, 0, 0,
+    0, 0, 7, 7, 3, 7, 7, 7, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  },
+  {  // wing level
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 7, 7, 0, 7, 0, 0, 0, 0,
+    0, 0, 7, 3, 3, 3, 7, 7, 7, 4, 0, 0, 0,
+    0, 0, 0, 7, 7, 7, 7, 7, 7, 0, 0, 0, 0,
+    0, 0, 0, 0, 7, 7, 7, 7, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 4, 4, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+  },
 };
 uint8_t idle_frame[FRAME_SIZE];  // blank, except the duty bar for BAR_MS after a Knob change
 
-const unsigned long SHOW_MS = 1000, SENSE_MS = 2000, BAR_MS = 3000;
+const unsigned long SHOW_MS = 1000, SENSE_MS = 2000, BAR_MS = 3000, FLAP_MS = 125;  // 2 flaps per showing
 const int DUTY_STEPS[] = {100, 50, 25, 10};
 const float NO_SENSOR = -999.0;
 
@@ -41,7 +74,8 @@ volatile bool pending = false;
 volatile float temperature_c = NO_SENSOR;
 volatile int duty_percent = 100;
 bool showing = false, bar_on = false;
-unsigned long sensed_at = 0, bar_since = 0;
+unsigned long sensed_at = 0, bar_since = 0, flap_since = 0;
+uint8_t flap_shown = 0;
 int knob_origin = 0, duty_index = 0;
 
 void bird_detected() {
@@ -108,9 +142,18 @@ void loop() {
   if (pending) {
     pending = false;
     if (!showing) {
-      matrix.draw(detect_frame);
+      flap_since = millis();
+      flap_shown = 0;
+      matrix.draw(flap[0]);
       showing = true;
       if (has_buzzer) buzzer.tone(3800, 80);  // one short chirp per detection burst
+    }
+  }
+  if (showing) {  // advance the flap; one draw per frame change, never a blocking delay
+    uint8_t f = ((millis() - flap_since) / FLAP_MS) % FLAP_FRAMES;
+    if (f != flap_shown) {
+      flap_shown = f;
+      matrix.draw(flap[f]);
     }
   }
   if (showing && millis() - detected_at >= SHOW_MS) {  // wrap-safe subtraction
