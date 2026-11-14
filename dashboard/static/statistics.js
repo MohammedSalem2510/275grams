@@ -118,7 +118,7 @@ async function refresh() {
       fmt(rate.detections), fmt(rate.listening_s / 3600), rateText(rate.rate_per_hour, rate.low_effort)
     ])), 'No stations available.', 5);
     fillRows('detections', detections.map(item => row([
-      new Date(item.start).toISOString().slice(0,19).replace('T',' '), birdName(item.species),
+      new Date(item.start).toLocaleString('en-GB',{timeZone:'Europe/Helsinki',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'}), birdName(item.species),
       stationName(item.station_id), item.score.toFixed(2)
     ])), 'No detections in this selection.', 4);
     element('trends').replaceChildren(...visible.map((station, index) => renderTrend(station, trends[index])));

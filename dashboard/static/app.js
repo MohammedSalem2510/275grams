@@ -29,7 +29,7 @@ function items(lines) {
 }
 function detectionItem(row) {
   const li = document.createElement('li');
-  li.textContent = common(row.species)+' · '+new Date(row.start).toISOString().slice(0,19).replace('T',' ')+' UTC · score '+row.score.toFixed(2);
+  li.textContent = common(row.species)+' · '+new Date(row.start).toLocaleString('en-GB',{timeZone:'Europe/Helsinki',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',second:'2-digit'})+' · score '+row.score.toFixed(2);
   if (row.evidence) {  // the 3 s window BirdNET heard, so a person can check the call
     const audio = document.createElement('audio');
     audio.controls = true;
