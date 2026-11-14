@@ -38,7 +38,7 @@ Evidence is kept on the laptop in `dashboard/evidence/` (gitignored), never in g
 
 | Endpoint | Returns |
 |---|---|
-| `GET /api/stations` | Registry plus `status`: `online` (a window received in the last 30 s), `offline`, `inactive` (never reported) or `simulated` |
+| `GET /api/stations` | Registry plus `status`: `online` (a window received in the last 30 s), `offline`, `inactive` (never reported) or `simulated`. Also `temperature_c` and `temperature_at`: the station's most recent Modulino Thermo reading and the start time of that window (both `null` if it never reported one). |
 | `GET /api/species?start=&end=` | `[{species, detections}]` for the search box |
 | `GET /api/detections?species=&station_id=&start=&end=&limit=` | Newest first: `[{window_id, station_id, start, species, score, evidence}]`. `evidence` is `true` when an audio clip is stored for that window. |
 | `GET /api/evidence/{window_id}` | The window's WAV evidence (`audio/wav`), or `404` if none was uploaded |
