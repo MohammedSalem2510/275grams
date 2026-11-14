@@ -11,11 +11,6 @@ Planted scenario for the early-warning demo: Willow Tit at sim-5 (Espoo Central 
 year-round resident that really is declining in Finland, falls to ~45 % of its usual activity
 over the last 2 weeks. Nothing else changes beyond week-to-week noise, so it should be the
 only alert.
-
-The 12 weeks run from late August to today (mid-November), so summer migrants fade out
-(MIGRANTS). They're gone, or down to a steady overwintering remnant, before the 8-week alert
-window starts, so migration never shows up as a decline. A real deployment needs same-season
-baselines from earlier years for that (protocol/http.md).
 """
 import math
 import random
@@ -27,30 +22,6 @@ from dashboard.server import DB_PATH, INSERT_WINDOW, NEW_COLUMNS, SCHEMA, STATIO
 MODEL = "SIMULATED"
 DAYS = 84
 WINDOW_S = 60.0
-
-# Species that leave Finland in autumn: (fade starts, gone by) in days ago, and the share that
-# overwinters. Every fade ends before day 56, outside the 2 + 6 week alert comparison.
-MIGRANTS = {
-    "Acrocephalus schoenobaenus_Sedge Warbler": (80, 62, 0.0),
-    "Phylloscopus trochilus_Willow Warbler": (76, 60, 0.0),
-    "Grus grus_Common Crane": (72, 58, 0.0),
-    "Emberiza schoeniclus_Reed Bunting": (74, 58, 0.0),
-    "Fringilla coelebs_Common Chaffinch": (76, 58, 0.0),
-    "Erithacus rubecula_European Robin": (74, 58, 0.0),
-    "Larus canus_Common Gull": (70, 58, 0.35),
-}
-
-
-def presence(species: str, days_ago: int) -> float:
-    """1 while a migrant is here, then a linear fade to its overwintering share."""
-    if species not in MIGRANTS:
-        return 1.0
-    start, gone, stays = MIGRANTS[species]
-    if days_ago >= start:
-        return 1.0
-    if days_ago <= gone:
-        return stays
-    return stays + (1 - stays) * (days_ago - gone) / (start - gone)
 
 # Per station: listening sessions in UTC hours (Finland is UTC+2 in November), days ago the
 # station was "offline", and species -> (song-bout start chance per minute, peak UTC hour).
@@ -74,8 +45,8 @@ SITES = {
             "Emberiza schoeniclus_Reed Bunting": (0.07, 4),
             "Acrocephalus schoenobaenus_Sedge Warbler": (0.06, 4),
             "Larus canus_Common Gull": (0.04, 16),
-            "Grus grus_Common Crane": (0.015, 5),
-            "Fringilla coelebs_Common Chaffinch": (0.015, 4),
+            "Grus grus_Common Crane": (0.03, 5),
+            "Fringilla coelebs_Common Chaffinch": (0.03, 4),
         },
     },
     "sim-4": {
@@ -151,7 +122,6 @@ def generate(station_id: str, site: dict, rng: random.Random, now: datetime):
                 for sp, (base, peak) in site["species"].items():
                     mood = weekly_mood.setdefault((sp, day // 7), rng.uniform(0.95, 1.05))
                     factor = decline_factor if sp == decline_sp and day <= decline_days else 1.0
-                    factor *= presence(sp, day)
                     if sp not in singing and rng.random() < bout_chance(base, peak, hour) * mood * factor:
                         singing[sp] = rng.randint(1, 4)  # one bird repeating: several minutes
                 for sp in singing:
