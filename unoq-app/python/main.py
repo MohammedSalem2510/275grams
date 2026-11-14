@@ -99,9 +99,10 @@ def accept(p: dict) -> list[dict]:
     return found
 
 
-# Camera mic, no AGC: 100% = +16 dB. Outdoors needs it for distant birds; indoors it clips on
-# room noise (use CHIRP_MIC_GAIN=20%). Clipping is logged so the level can be checked in the field.
-MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "100%")
+# Camera mic, no AGC: 100% = +16 dB, 80% = +12.8 dB. Outdoors at 100% traffic noise alone peaked
+# at -3.5 dBFS and close birds clipped, so 80% keeps ~3 dB of headroom for distant birds.
+# Indoors use CHIRP_MIC_GAIN=20%. Clipping is logged so the level can be checked in the field.
+MIC_GAIN = os.environ.get("CHIRP_MIC_GAIN", "80%")
 
 # ---------- Field recording (off unless the flag file exists) ----------
 # Turn on for a field session:   touch ~/repo/unoq-app/python/record_audio   then restart the app
