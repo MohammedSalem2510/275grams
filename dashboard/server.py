@@ -7,6 +7,8 @@ import csv
 import io
 import json
 import math
+import os
+import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -20,17 +22,20 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from dashboard import photos
+from dashboard.storage import DATA_DIR
 
 
 #backend stuff
 HERE = Path(__file__).resolve().parent
-DB_PATH = HERE / "chirp.db"  # gitignored
+HOSTED = os.getenv("CHIRP_HOSTED") == "1"
+STATION_TOKEN = os.getenv("CHIRP_STATION_TOKEN", "")
+DB_PATH = DATA_DIR / "chirp.db"
 STATIONS = json.loads((HERE / "stations.json").read_text(encoding="utf-8"))
 LIVE_IDS = {s["station_id"] for s in STATIONS if not s["simulated"]}
 ONLINE_WITHIN_S = 30
 MIN_LISTENING_S = 60  # less than this in a range = "no data", not a rate
 LOW_EFFORT_S = 15 * 60  # a rate exists, but on too little listening to trust: flag it
-EVIDENCE_DIR = HERE / "evidence"  # gitignored: detection audio stays on the laptop
+EVIDENCE_DIR = DATA_DIR / "evidence"
 EVIDENCE_DIR.mkdir(exist_ok=True)
 EVIDENCE_MAX_BYTES = 1_000_000  # a 3 s 48 kHz mono window is ~288 kB
 SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{8,64}$")  # window_id becomes a file name
@@ -128,8 +133,18 @@ class Window(BaseModel):
 app = FastAPI(title="Chirp")
 
 
+def require_station(request: Request):
+    """Hosted (public) dashboard: only a station with the token may upload (protocol/http.md)."""
+    if not HOSTED:
+        return
+    supplied = request.headers.get("Authorization", "").encode()
+    if not STATION_TOKEN or not secrets.compare_digest(supplied, f"Bearer {STATION_TOKEN}".encode()):
+        raise HTTPException(401, "Station token required")
+
+
 @app.post("/api/windows")
-def ingest(windows: list[Window]):
+def ingest(windows: list[Window], request: Request):
+    require_station(request)
     if not 1 <= len(windows) <= 500:
         raise HTTPException(422, "send 1-500 windows per request")
     unknown = {w.station_id for w in windows} - LIVE_IDS
@@ -213,6 +228,7 @@ def evidence_path(window_id: str) -> Path:
 @app.put("/api/evidence/{window_id}")
 async def put_evidence(window_id: str, request: Request):
     """Audio for one accepted detection; only after its window is stored (protocol/http.md)."""
+    require_station(request)
     path = evidence_path(window_id)
     body = await request.body()
     if len(body) > EVIDENCE_MAX_BYTES:

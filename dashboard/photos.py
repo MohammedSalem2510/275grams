@@ -10,7 +10,9 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-CACHE = Path(__file__).resolve().parent / "photos"  # gitignored
+from dashboard.storage import DATA_DIR
+
+CACHE = DATA_DIR / "photos"
 CACHE.mkdir(exist_ok=True)
 ALLOWED = {"pd": "Public domain", "cc0": "CC0", "cc-by": "CC BY", "cc-by-sa": "CC BY-SA",
            "cc-by-nc": "CC BY-NC", "cc-by-nc-sa": "CC BY-NC-SA"}  # Chirp is non-commercial; shown unchanged, with credit

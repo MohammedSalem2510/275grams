@@ -1,0 +1,8 @@
+**
+!dashboard/
+!dashboard/*.py
+!dashboard/requirements.txt
+!dashboard/stations.json
+!dashboard/static/
+!dashboard/static/**
+dashboard/static/maps-config.local.js
