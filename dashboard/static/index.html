@@ -1,20 +1,27 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chirp backend check</title>
-<!-- Placeholder so the backend can be checked end to end. Seun's map replaces this file. -->
-<style>body{font:15px system-ui,sans-serif;margin:24px;max-width:900px}table{border-collapse:collapse;width:100%;margin-bottom:24px}td,th{border-bottom:1px solid #ccc;padding:6px;text-align:left}</style>
-<h1>Chirp: backend check</h1>
-<h2>Stations</h2><table id="st"></table>
-<h2>Latest detections</h2><table id="det"></table>
-<script>
-const row = (t, cells, tag = 'td') => { const r = t.insertRow(); cells.forEach(v => { const c = document.createElement(tag); c.textContent = v; r.appendChild(c); }); };
-async function refresh() {
-  const [st, rates, det] = await Promise.all(['/api/stations', '/api/rates', '/api/detections?limit=20'].map(u => fetch(u).then(r => r.json())));
-  const byId = Object.fromEntries(rates.map(r => [r.station_id, r]));
-  const t = document.getElementById('st'); t.replaceChildren(); row(t, ['Station', 'Status', 'Detections', 'Listening', 'Rate / h'], 'th');
-  st.forEach(s => { const r = byId[s.station_id]; row(t, [s.name, s.status, r.detections, (r.listening_s / 60).toFixed(1) + ' min', r.rate_per_hour === null ? 'no data' : r.rate_per_hour.toFixed(1) + (r.low_effort ? ' ⚠ low effort' : '')]); });
-  const d = document.getElementById('det'); d.replaceChildren(); row(d, ['Time (UTC)', 'Station', 'Species', 'Score'], 'th');
-  det.forEach(x => row(d, [x.start.slice(11, 19), x.station_id, x.species.split('_').slice(1).join('_'), x.score.toFixed(2)]));
-}
-refresh(); setInterval(refresh, 3000);
-</script></html>
+<html lang="en" data-theme="forest">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chirp — Bird activity map</title>
+<link rel="stylesheet" href="style.css">
+<body>
+<header><a href="./" aria-label="Chirp home"><span>◉</span> chirp</a><label>Theme <select id="theme"><option value="forest">Forest</option><option value="paper">Linen</option><option value="ocean">Tide</option><option value="night">After dark</option></select></label></header>
+<main>
+<p class="eyebrow">CHIRP FIELD ATLAS</p>
+<h1>Explore bird activity</h1>
+<p class="intro">Choose a bird and tap a station to see where it was detected.</p>
+<section class="atlas" aria-label="Bird activity map">
+<div class="toolbar"><label>Bird species <select id="species"></select></label><label>Period <select id="period"><option value="24">Last 24 hours</option><option value="168">Last 7 days</option><option value="">All time</option></select></label><label class="toggle"><input id="heat" type="checkbox" checked> Heatmap</label></div>
+<div class="map">
+<div id="sample"><div id="sample-points"></div></div>
+<div id="google-map" hidden></div>
+<span id="map-status" role="status">Station positions</span>
+</div>
+<div class="legend"><span>Detections per listening hour</span><span class="scale">0 <i></i> 24+</span><span>◯ Rate unavailable</span></div>
+</section>
+<section class="station" aria-label="Selected station"><div><p class="eyebrow">SELECTED STATION</p><h2 id="station-name"></h2><p id="station-info"></p></div><div><strong id="rate"></strong></div></section>
+<p id="connection" role="status">Connecting to Chirp…</p><section class="station"><div><h2>Recent detections</h2><ul id="detections"></ul></div></section><p class="note">Areas between stations are unsampled.</p>
+</main>
+<script src="maps-config.js"></script><script src="app.js"></script>
+</body>
+</html>

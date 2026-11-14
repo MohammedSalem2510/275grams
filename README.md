@@ -76,3 +76,5 @@ iPhone hotspot: turn on **Maximise Compatibility** (the ESP32 is 2.4 GHz only).
 ```bash
 mosquitto_sub -h <unoq-hostname>.local -t '#' -v
 ```
+
+The integrated map is served at the backend root. From the repo root, install dependencies with `python -m pip install -r dashboard/requirements.txt` and run `python -m uvicorn dashboard.server:app --host 127.0.0.1 --port 8000`. Open http://127.0.0.1:8000/. The station grid and all data controls work without a Google Maps key. To enable the Google basemap, set a browser-restricted key in `dashboard/static/maps-config.js` locally. Keep the populated file out of commits.
