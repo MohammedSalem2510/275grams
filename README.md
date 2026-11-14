@@ -1,14 +1,13 @@
-# Junction 2026 — Hardware Track
+# Chirp: Junction 2026, hardware track
 
-On-device voice control on an **Arduino UNO Q**, with two **ESP32-based Atech boards** as wireless sensor nodes over MQTT.
+Edge listening stations for ecologists. An **Arduino UNO Q** hears bird calls through the kit camera's mic, identifies them on the device with BirdNET, and uploads only the analysed results (plus a 3 s clip per accepted detection, never speech) to a laptop dashboard. The dashboard shows detections per listening hour on a map.
 
 ```
-[USB mic] → UNO Q Linux (Python, keyword spotting) ──Bridge RPC──► UNO Q MCU (sketch: actuators, Modulinos)
+[camera mic] → UNO Q Linux (Python, BirdNET) ──Bridge RPC──► UNO Q MCU (LED matrix, Modulino Buzzer / Thermo / Knob)
                     │
-                Mosquitto broker
-                    │  MQTT over Wi-Fi (2.4 GHz hotspot)
-          ┌─────────┴─────────┐
-     Atech node 1        Atech node 2
+                    │  HTTP over Wi-Fi (protocol/http.md)
+                    ▼
+       laptop: FastAPI + SQLite + map dashboard (dashboard/)
 ```
 
 ## Project document
@@ -32,21 +31,21 @@ For the laptop upload GUI, connect the team's UNO Q directly by USB. From the re
 python tools/listen_gui.py "$env:LOCALAPPDATA\Arduino15\packages\arduino\tools\adb\32.0.0\adb.exe"
 ```
 
-The GUI sends audio to the board over ADB. The webcam command runs on the board over SSH. App Lab still launches the stock keyword example. The model, runtime and example recording are installed separately on the board.
+The GUI sends audio to the board over ADB. The webcam command runs on the board over SSH. The model, runtime and example recording are installed separately on the board.
 
 ## Layout
 
 | Folder | What | Owner |
 |---|---|---|
 | `unoq-app/` | App Lab app: `python/` (Linux side) + `sketch/` (MCU side). Must stay self-contained. | Python + C++ |
-| `atech-node/` | PlatformIO firmware for both ESP32 nodes (`-e node1` / `-e node2`) | C++ |
-| `protocol/` | MQTT topics + JSON schema — the contract. Change it here first. | Everyone |
-| `hardware/` | Pinouts, wiring photos, BOM | Everyone |
+| `dashboard/` | Laptop backend (FastAPI, SQLite, audio evidence) and map dashboard | Python + JS |
+| `protocol/` | HTTP contract between station and backend (`http.md`). Change it here first. | Everyone |
+| `hardware/` | 3D-printed enclosure (OpenSCAD + STL), pinouts | Everyone |
 | `docs/` | Pitch notes, demo script | Everyone |
 
 ## Rules
 
-- Commit straight to `main` (`git pull --rebase` before pushing). Prefix messages with the subsystem (`kws:`, `mcu:`, `node:`, `protocol:`, `docs:`) and say if a change is untested on hardware.
+- Commit straight to `main` (`git pull --rebase` before pushing). Prefix messages with the subsystem (`kws:`, `mcu:`, `dashboard:`, `protocol:`, `hardware:`, `docs:`) and say if a change is untested on hardware.
 - Tag every working full-system build: `git tag demo-vN && git push --tags`.
 - Never commit secrets. Copy `*.example*` files and fill them in locally.
 
@@ -56,25 +55,12 @@ The GUI sends audio to the board over ADB. The webcam command runs on the board 
 ```bash
 ssh arduino@<unoq-hostname>.local
 git clone <repo-url> ~/repo
-ln -s ~/repo/unoq-app ~/ArduinoApps/junction-app   # if App Lab ignores symlinks, rsync instead
-sudo apt install -y mosquitto mosquitto-clients
+ln -s ~/repo/unoq-app ~/ArduinoApps/chirp-station
+echo http://<laptop-ip>:8000 > ~/repo/unoq-app/python/server_url.txt
 ```
-Deploy = `cd ~/repo && git pull`, then run the app from App Lab.
+Deploy = `cd ~/repo && git pull`, then `arduino-app-cli app stop user:chirp-station; arduino-app-cli app start user:chirp-station`.
 
 USB mic goes into the **powered** USB-C hub (5 V 3 A). With the hub attached, App Lab connects over Wi-Fi.
 
-### ESP32 nodes
-```bash
-cd atech-node
-cp include/secrets.example.h include/secrets.h   # fill in Wi-Fi + broker hostname
-pio run -e node1 -t upload
-pio run -e node2 -t upload
-```
-iPhone hotspot: turn on **Maximise Compatibility** (the ESP32 is 2.4 GHz only).
-
-### Debug the bus
-```bash
-mosquitto_sub -h <unoq-hostname>.local -t '#' -v
-```
-
+### Laptop dashboard
 The integrated map is served at the backend root. From the repo root, install dependencies with `python -m pip install -r dashboard/requirements.txt` and run `python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000` (`0.0.0.0`, not `127.0.0.1`, or the UNO Q cannot upload). Open http://127.0.0.1:8000/. The station grid and all data controls work without a Google Maps key. To enable the Google basemap, copy `dashboard/static/maps-config.js` to `dashboard/static/maps-config.local.js` and paste a browser-restricted Maps JavaScript API key between the quotes in the local copy. Git ignores the local copy.

@@ -86,7 +86,7 @@ The UNO Q owner controls board deployments. Commit straight to `main` (see CLAUD
 - **UNO Q:** Python audio capture and local model inference; benchmark BirdNET first. Do not train a new model during the core build.
 - **Laptop:** Python FastAPI, SQLite and local evidence files; a simple HTML/JavaScript dashboard with Leaflet.
 - **Map:** fixed station coordinates and selectable markers. Keep a local park image fallback so the demonstration does not depend on online map tiles.
-- **Transport:** retain MQTT for node status/control. Use HTTP uploads for audio evidence and detection metadata.
+- **Transport:** HTTP only, for windows, detections and audio evidence (`protocol/http.md`). MQTT and the Atech nodes were dropped on 14 Nov, and station status comes from uploads.
 - **Minimum records:** station ID/location; recording ID/capture time/duration; species prediction/confidence/model version; evidence reference; analysed listening intervals.
 - **Minimum API:** upload a recording and its predictions; list stations; query detections by station/species/time; retrieve evidence.
 - **Detection definition:** one accepted species prediction per analysed window. Label displayed totals as detection windows, not individual animals.

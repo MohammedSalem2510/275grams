@@ -13,11 +13,11 @@ The full brief is the "Project_Chirp" Google Doc linked from README.md; it is th
 ## Milestones
 1. ~~demo-v0 (stock check)~~: skipped, because demo-v1 proved the same things.
 2. ✅ **demo-v1 (tagged 14 Nov):** Camera mic → BirdNET on Linux (`unoq-app/python/main.py`) → `Bridge.call(...)` → the MCU (`unoq-app/sketch/sketch.ino`) shows the detection on the LED matrix and plays a Modulino chirp.
-3. **demo-v2 (current priority):** the UNO Q uploads each analysed window (recording ID, station, capture time, duration, predictions, clip) over HTTP to a **laptop backend**: FastAPI, SQLite, clips on disk, and a Leaflet dashboard with a local map-image fallback. Keep `detections` and analysed `listening` intervals in separate tables so rates are right from day one. Uploads retry with the same recording ID, so a retry never creates a duplicate. Full plan: `docs/implementation-plan.md`.
-4. **Network:** the two Atech ESP32 nodes become listening stations that stream to the UNO Q as the edge gateway, with heartbeats for online/offline. This is only possible if the Atech mics expose waveform samples rather than a sound level, so check that first. If they can't, the nodes report activity level and status only.
+3. ✅ **demo-v2 (tagged 14 Nov):** the UNO Q uploads each analysed window (recording ID, station, capture time, duration, predictions, clip) over HTTP to a **laptop backend**: FastAPI, SQLite, clips on disk, and a Leaflet dashboard with a local map-image fallback. Keep `detections` and analysed `listening` intervals in separate tables so rates are right from day one. Uploads retry with the same recording ID, so a retry never creates a duplicate. Full plan: `docs/implementation-plan.md`.
+4. ~~Network of Atech ESP32 nodes~~: **dropped 14 Nov**. Their mics were never verified, and the code and MQTT contract are removed. Pitch it as future work ("cheap satellite nodes"), don't build it.
 5. Stretch: an on-demand camera livestream, human review states, multi-season trends on real data.
 
-`demo-v1` is tagged, so `atech-node/`, MQTT and `protocol/` are open, but demo-v2 (the end-to-end dashboard) comes first. `main.py` must still run without a broker.
+Now: re-test the station inside the printed enclosure, run a short accuracy test, and rehearse the demo (`docs/demo-script.md`). No new features.
 
 ## Hard rules
 - `unoq-app/` must stay self-contained. App Lab compiles only `sketch/sketch.ino`, `sketch/*.h` and `sketch/sketch.yaml`, and runs `python/`. Nothing in it may reference files outside `unoq-app/`.
@@ -26,7 +26,7 @@ The full brief is the "Project_Chirp" Google Doc linked from README.md; it is th
 - The last `demo-vN` tag is the known-good build. If `main` breaks, roll the board back to it.
 - Tag every working full-system build `demo-vN` (`git tag demo-vN`, then `git push --tags`).
 - Never commit secrets (`secrets.h`, `.env`) or raw audio (`*.wav`, `data/`). Raw audio stays in Edge Impulse.
-- Change the MQTT contract in `protocol/README.md` first, in its own `protocol:` commit.
+- Change the HTTP contract in `protocol/http.md` first, in its own `protocol:` commit.
 
 ## Verified platform facts (from arduino/app-bricks-py and app-bricks-examples, Nov 2026)
 - Brick id: `arduino:keyword_spotting` (colon, not slash). Audio classification is `arduino:audio_classification`.
@@ -53,15 +53,14 @@ The full brief is the "Project_Chirp" Google Doc linked from README.md; it is th
 - **The board uploads every analysed window to the laptop backend** (`dashboard/server.py`, contract `protocol/http.md`). To run it, from the repo root: `python -m uvicorn dashboard.server:app --host 0.0.0.0 --port 8000`. `SERVER` in `main.py` is the laptop's IP (10.0.39.120 on Junction Wi-Fi, which may change). Board → laptop connections work on Junction Wi-Fi.
 - **Board-local settings:** the backend address lives in `unoq-app/python/server_url.txt` (gitignored). Never edit the IP in `main.py`: that blocks `git pull` on the board. Chirp Station is the board's **default app**, so it starts on boot (`arduino-app-cli properties set default user:chirp-station`).
 - **Early warning:** `/api/alerts` compares the last 2 weeks with the previous 6 per station and species, counted in detection-minutes. The rule is in `protocol/http.md`. Run `python -m dashboard.seed_simulated` for 12 weeks of labelled synthetic data with one planted decline (reed bunting, sim-3).
+- **Modulinos verified 14 Nov:** Thermo (reads ~23.7 °C indoors), Knob (duty 100/50/25/10 %; press = 100 %) and Buzzer (`buzzer.tone(3800, 80)` chirps per detection) all work on the Qwiic chain. They're detected only at sketch start, so restart the app after plugging one in. At 50 % duty the station is deaf for half of every minute: keep 100 % for demos.
+- **Audio evidence:** each accepted detection's 3 s WAV is PUT to `/api/evidence/{window_id}` after its window uploads, and the dashboard plays it inline. Clips are stored in `dashboard/evidence/` on the laptop (gitignored).
 - SSH: the board's hostname is `Chirp`. On Junction Wi-Fi its IP was 10.0.41.148, which may change.
 - BirdNET v2.4 (`BirdNET_GLOBAL_6K_V2.4_Model_FP32.tflite`) runs on the board through `ai_edge_litert`, 2 threads, on 3 s windows of 48 kHz mono S16_LE (288 000 bytes). Script: `unoq-app/python/bird_audio.py`. The model and runtime live in `~/chirp-test` on the board, not in git.
 - The board is reachable over USB with Arduino's `adb.exe` (`%LOCALAPPDATA%\Arduino15\packages\arduino\tools\adb\32.0.0\adb.exe`) when Wi-Fi discovery fails.
 
 ## Still unverified
-- Whether the Atech microphone gives waveform samples (analogue output we can sample at 16 kHz or more, or I2S) or only a sound level. Read its datasheet or silkscreen.
 - BirdNET's sustained memory use and its behaviour over long runs.
-- The ModulinoBuzzer API (`tone(freq, ms)`?). Check the library examples before relying on it.
-- The PlatformIO `board =` value for the Atech "2.2 frame" board (post-MVP).
 
 ## Environment
 - The dev machines run Windows with PowerShell 5.1. There is no `&&` and no `unzip`, so give commands one per line or join them with `;`.
