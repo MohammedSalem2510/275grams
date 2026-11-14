@@ -131,6 +131,7 @@ function googleFallback(message) {
   refreshGoogle=null;
   $('google-map').hidden=true;
   $('map-view-control').hidden=true;
+  $('map-tilt-control').hidden=true;
   $('sample').hidden=false;
   $('map-status').textContent=message;
 }
@@ -148,18 +149,7 @@ function connectGoogle(key) {
       const target=$('google-map');
       target.hidden=false;
       target.style.cssText='position:absolute;inset:0;visibility:hidden';
-      const map = new maps.Map(target, {
-        center: { lat: 60.1856, lng: 24.8320 },
-        zoom: 13,
-        streetViewControl: false,
-        mapTypeControl: false,
-        fullscreenControl: false,
-        ...window.CHIRP_MAP_OPTIONS,
-        // Raster rendering (the default) so CHIRP_MAP_OPTIONS.styles applies; vector
-        // maps ignore JSON styles and need a Cloud Map ID.
-        mapTypeId: $('map-view').value
-      });
-      overlay=new class extends maps.OverlayView {
+      class StationOverlay extends maps.OverlayView {
         onAdd() {
           this.root=document.createElement('div');
           this.getPanes().overlayMouseTarget.append(this.root);
@@ -182,16 +172,54 @@ function connectGoogle(key) {
           });
         }
         onRemove(){this.root?.remove();refreshGoogle=null;}
+      }
+      // Street: raster, so the muted CHIRP_MAP_OPTIONS.styles apply (vector maps ignore JSON styles
+      // without a Cloud Map ID). Satellite: vector, so Seun's zoom-based 3D tilt works; JSON styles
+      // don't affect imagery anyway. The renderer is fixed per map, so switching view rebuilds it.
+      let map, camera={center:{lat:60.1856,lng:24.8320},zoom:13};
+      const tiltToggle=$('map-tilt');
+      const updateTilt=()=>{
+        const vector=map?.getRenderingType()===maps.RenderingType.VECTOR;
+        $('map-tilt-control').hidden=failed||$('map-view-control').hidden||!vector;
+        if(!vector||failed) return;
+        const zoom=map.getZoom()??13;
+        map.setTilt(tiltToggle.checked?Math.min(60,Math.max(0,(zoom-14)*12)):0);
       };
-      overlay.setMap(map);
+      const build=()=>{
+        if(map) camera={center:map.getCenter(),zoom:map.getZoom()};
+        overlay?.setMap(null);
+        const view=$('map-view').value;
+        const host=document.createElement('div');
+        host.style.cssText='position:absolute;inset:0';
+        target.replaceChildren(host);
+        map=new maps.Map(host,{
+          streetViewControl:false,
+          mapTypeControl:false,
+          fullscreenControl:false,
+          ...window.CHIRP_MAP_OPTIONS,
+          ...camera,
+          mapTypeId:view,
+          renderingType:view==='satellite'?maps.RenderingType.VECTOR:maps.RenderingType.RASTER,
+          tilt:0
+        });
+        map.addListener('zoom_changed',updateTilt);
+        map.addListener('renderingtype_changed',updateTilt);
+        overlay=new StationOverlay();
+        overlay.setMap(map);
+        updateTilt();
+        return map;
+      };
+      build();
       maps.event.addListenerOnce(map,'tilesloaded',()=>{
         if(failed) return;
         clearTimeout(timeout);
         target.style.cssText='';
         $('sample').hidden=true;
         $('map-status').textContent='Google Maps';
-        $('map-view').onchange=()=>map.setMapTypeId($('map-view').value);
+        $('map-view').onchange=build;
         $('map-view-control').hidden=false;
+        tiltToggle.onchange=updateTilt;
+        updateTilt();
       });
     } catch {fail();}
   };
